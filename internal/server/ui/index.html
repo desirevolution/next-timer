@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d121b">
+  <title>NextTimer</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css?v=21">
+  <script type="module" src="/js/app.js?v=21"></script>
+  <script defer src="/pwa-update.js?v=21"></script>
+</head>
+<body>
+<main class="shell">
+  <header class="app-header">
+    <div class="brand"><span class="logo" aria-hidden="true">◷</span><div><h1>NextTimer</h1><p>Favorit starten. Zeit im Blick.</p></div></div>
+    <div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div>
+  </header>
+
+  <div class="utility-bar" aria-label="Timer-Einstellungen">
+    <button type="button" id="notifications-enable" class="secondary-button">Benachrichtigungen aktivieren</button>
+    <span id="notifications-status" class="notification-status" role="status" hidden></span>
+  </div>
+  <div id="pwa-update-banner" class="pwa-update-banner" role="status" hidden><div><strong>Eine neue Version von NextTimer ist verfügbar.</strong><span>Aktualisieren, wenn du bereit bist. Laufende lokale Timer bleiben gespeichert.</span></div><div class="update-actions"><button type="button" id="pwa-update-later">Später</button><button type="button" id="pwa-update-now" class="primary-button">Aktualisieren</button></div></div>
+  <div id="finished-banner" class="finished-banner" role="alert" hidden><div><strong>⏰ Timer abgelaufen</strong><span id="finished-label"></span></div><button type="button" id="finished-close">Schließen</button></div>
+  <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel">
+    <div class="heading"><h2 id="focus-title">Nächster Ablauf</h2><span class="pill" id="head-status">Bereit</span></div>
+    <div class="focus-layout">
+      <div class="focus-readout">
+        <div class="timer-title"><div class="timer-name" id="hero-name">Noch kein Timer aktiv</div></div><div class="timer-origin" id="hero-origin" hidden>Nur in diesem Browser · nicht auf AWTRIX</div>
+        <div class="clock" id="hero-time">--:--</div>
+        <div class="progress"><div class="bar" role="progressbar" aria-label="Fortschritt des Haupttimers" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="hero-progress"><div id="hero-bar"></div></div></div>
+      </div>
+      <div class="hero-controls" id="hero-controls" hidden>
+        <div class="control-trio">
+          <button class="control-button" type="button" data-action="adjust" data-delta="-1m" id="hero-minus"><span class="control-symbol" aria-hidden="true">−</span><span>1 Min.</span></button>
+          <button class="control-button primary-control" type="button" data-action="pause" id="hero-toggle"><span class="control-symbol" id="toggle-symbol" aria-hidden="true">Ⅱ</span><span id="toggle-label">Pause</span></button>
+          <button class="control-button" type="button" data-action="adjust" data-delta="+1m" id="hero-plus"><span class="control-symbol" aria-hidden="true">+</span><span>1 Min.</span></button>
+        </div>
+        <button class="stop-button" type="button" data-action="stop" id="hero-stop">■ Timer beenden</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel fav-panel" aria-labelledby="fav-title">
+    <div class="heading fav-heading">
+      <div><h2 id="fav-title">Favoriten <span class="count" id="fav-count">0</span></h2><p class="subtle" id="fav-hint">Ein Klick startet den Timer.</p></div>
+      <button type="button" id="sort-toggle" class="secondary-button" aria-pressed="false">✎ Favoriten bearbeiten</button>
+    </div>
+    <div class="sort-info" id="sort-info" hidden>Favoriten bearbeiten, löschen oder innerhalb ihrer Gruppe umsortieren. Die Reihenfolge wird automatisch gespeichert.</div>
+    <div class="favorites" id="favorites"></div>
+    <div class="sort-status" id="sort-status" role="status" aria-live="polite"></div>
+  </section>
+
+  <details class="panel extra-panel" id="new-section">
+    <summary><span>＋ Neuen Timer erstellen <span class="subtle">oder Favorit hinzufügen</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
+    <form id="new-form">
+      <div class="fields">
+        <div><label for="duration">Dauer</label><input id="duration" value="10m" required placeholder="10m oder 1h30m"></div>
+        <div><label for="name">Name (optional)</label><input id="name" maxlength="80" placeholder="z. B. Kaffee"></div>
+      </div>
+      <fieldset class="timer-options">
+        <legend>Optionen für diesen Timer</legend>
+        <label class="check-option"><input id="timer-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Offline, ohne AWTRIX und CLI</small></span></label>
+        <label class="check-option"><input id="timer-notify" type="checkbox" checked><span><strong>Benachrichtigung</strong><small>In der App und, falls erlaubt, im System</small></span></label>
+        <label class="check-option"><input id="timer-sound" type="checkbox" checked><span><strong>Signalton</strong><small>Deutlicher zweifacher Dreiklang</small></span></label>
+      </fieldset>
+      <div class="favorite-group-field"><label for="timer-group">Gruppe (nur beim Speichern als Favorit)</label><input id="timer-group" list="favorite-group-options" maxlength="48" placeholder="Standard · oder Gruppennamen eingeben" autocomplete="off"><small class="subtle">Vorhandene Gruppe wählen oder einen neuen Namen eingeben. Leer = Standard.</small></div>
+      <div class="form-actions">
+        <button type="submit" class="primary-button" id="start-btn">▶ Timer starten</button>
+        <button type="button" id="save-favorite">☆ Als Favorit speichern</button>
+      </div>
+    </form>
+  </details>
+
+  <details class="panel extra-panel" id="others-section">
+    <summary><span>Weitere Timer <span class="count" id="timer-count">0</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
+    <div id="timers"><p class="empty">Keine weiteren Timer.</p></div>
+  </details>
+  <p id="message" class="message" role="status" aria-live="polite"></p>
+  <datalist id="favorite-group-options"></datalist>
+  <dialog id="group-dialog" class="edit-dialog" aria-labelledby="group-title">
+    <form id="group-form"><h2 id="group-title">Gruppe umbenennen</h2>
+      <p class="subtle">Alle Favoriten dieser Gruppe erhalten den neuen Gruppennamen.</p>
+      <label for="group-rename">Neuer Name</label><input id="group-rename" required maxlength="48" autocomplete="off">
+      <div class="form-actions edit-actions"><button type="button" id="group-cancel">Abbrechen</button><button type="submit" class="primary-button" id="group-submit">Gruppe umbenennen</button></div>
+      <p class="dialog-error" id="group-error" role="alert"></p>
+    </form>
+  </dialog>
+  <dialog id="favorite-dialog" class="edit-dialog" aria-labelledby="dialog-title">
+    <form id="edit-form">
+      <h2 id="dialog-title">Favorit bearbeiten</h2>
+      <p class="subtle">Änderungen betreffen nur die Vorlage, nicht bereits gestartete Timer.</p>
+      <div class="fields">
+        <div><label for="edit-duration">Dauer</label><input id="edit-duration" required></div>
+        <div><label for="edit-name">Name</label><input id="edit-name" maxlength="80" required></div>
+        <div><label for="edit-group">Gruppe</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"></div>
+      </div>
+      <fieldset class="timer-options">
+        <legend>Optionen für diesen Favoriten</legend>
+        <label class="check-option"><input id="edit-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Startet immer lokal, nicht über AWTRIX oder CLI</small></span></label>
+        <label class="check-option"><input id="edit-notify" type="checkbox"><span><strong>Benachrichtigung</strong><small>In der App und, falls erlaubt, im System</small></span></label>
+        <label class="check-option"><input id="edit-sound" type="checkbox"><span><strong>Signalton</strong><small>Deutlicher zweifacher Dreiklang</small></span></label>
+      </fieldset>
+      <div class="form-actions edit-actions">
+        <button type="button" id="edit-cancel">Abbrechen</button>
+        <button type="submit" class="primary-button" id="edit-submit">Änderungen speichern</button>
+      </div>
+      <p class="dialog-error" id="edit-error" role="alert"></p>
+    </form>
+  </dialog>
+</main>
+</body>
+</html>

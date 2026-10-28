@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.*
+dist/
+data/
+*.zip
+*.tar.gz
+README.md
+*.log

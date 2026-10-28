@@ -1,0 +1,9 @@
+# Local Compose configuration (never commit secrets / addresses)
+.env
+.env.*
+!.env.example
+
+# Local builds and runtime files
+dist/
+data/
+*.log

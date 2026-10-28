@@ -1,0 +1,24 @@
+services:
+  nexttimer:
+    build:
+      context: .
+      target: runtime
+    image: nexttimer:dev
+    restart: unless-stopped
+    ports:
+      - "${NEXTTIMER_BIND_ADDRESS:-127.0.0.1}:${NEXTTIMER_PORT:-8080}:8080"
+    environment:
+      TIMER_LISTEN: "0.0.0.0:8080"
+      TIMER_DATA: "/data/templates.json"
+      TIMER_FINISHED_TTL: "${TIMER_FINISHED_TTL:-60s}"
+      AWTRIX_URL: "${AWTRIX_URL:-}"
+      AWTRIX_FINISH_EFFECT: "${AWTRIX_FINISH_EFFECT:-Fireworks}"
+      AWTRIX_FINISH_EFFECT_SPEED: "${AWTRIX_FINISH_EFFECT_SPEED:-1.0}"
+      AWTRIX_FINISH_DURATION: "${AWTRIX_FINISH_DURATION:-5s}"
+      AWTRIX_SYNC_LEAD: "${AWTRIX_SYNC_LEAD:-100ms}"
+      TIMER_ALARM_WEBHOOK_URL: "${TIMER_ALARM_WEBHOOK_URL:-}"
+    volumes:
+      - nexttimer_data:/data
+
+volumes:
+  nexttimer_data:
