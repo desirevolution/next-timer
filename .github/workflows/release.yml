@@ -1,0 +1,214 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexttimer-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: false # Initial project has no go.sum; tidy creates one for the build.
+
+      - name: Resolve modules and test
+        run: |
+          go mod tidy
+          go test ./...
+
+  build:
+    name: Build Linux ${{ matrix.arch }}
+    if: github.event_name == 'release'
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      IMAGE: ghcr.io/desirevolution/next-timer
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: Build CLI and server binaries
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          go mod tidy
+          mkdir -p release
+          for binary in nexttimer nexttimer-server; do
+            CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" \
+              go build -trimpath -ldflags='-s -w' \
+              -o "release/$binary" "./cmd/$binary"
+            tar -czf "${binary}-linux-${ARCH}.tar.gz" -C release "$binary"
+          done
+
+      - name: Upload binary archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.arch }}
+          path: '*-linux-${{ matrix.arch }}.tar.gz'
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image by digest
+        id: image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=nexttimer-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=nexttimer-${{ matrix.arch }}
+
+      - name: Export image digest
+        shell: bash
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test -n "$DIGEST"
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-image:
+    name: Publish multi-arch image
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/desirevolution/next-timer
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate version tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/desirevolution/next-timer
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - name: Assemble multi-architecture manifest
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          mapfile -t tags < <(printf '%s\n' "$IMAGE_TAGS" | sed '/^$/d')
+          test "${#tags[@]}" -gt 0
+          tag_args=()
+          for tag in "${tags[@]}"; do
+            tag_args+=(-t "$tag")
+          done
+          shopt -s nullglob
+          digest_files=("$RUNNER_TEMP"/digests/*)
+          test "${#digest_files[@]}" -eq 2
+          image_refs=()
+          for file in "${digest_files[@]}"; do
+            image_refs+=("${IMAGE}@sha256:$(basename "$file")")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${image_refs[@]}"
+          docker buildx imagetools inspect "${tags[0]}"
+
+  publish-binaries:
+    name: Attach binaries to GitHub release
+    if: github.event_name == 'release'
+    needs: [build, publish-image]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download binary archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: release
+
+      - name: Create SHA256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          test "$(find . -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 4
+          sha256sum ./*.tar.gz > SHA256SUMS
+
+      - name: Upload assets to published GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" release/*.tar.gz release/SHA256SUMS --clobber
