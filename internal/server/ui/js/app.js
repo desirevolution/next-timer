@@ -1,8 +1,11 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=23';
-import {LocalTimers} from './local-timers.js?v=23';
-import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=23';
+import {enableFavoriteSorting} from './favorite-sort.js?v=24';
+import {createStandaloneAPI} from './standalone-store.js?v=24';
+import {LocalTimers} from './local-timers.js?v=24';
+import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=24';
 
 const $ = id => document.getElementById(id);
+const STANDALONE = document.documentElement.dataset.mode === 'standalone';
+let standaloneStore;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmt = ms => {
   const seconds = Math.max(0,Math.ceil(ms/1000));
@@ -24,6 +27,7 @@ const fraction = t => t.duration_ms>0?Math.max(0,Math.min(1,1-remaining(t)/t.dur
 function message(text='',error=false) {const el=$('message');el.textContent=text;el.classList.toggle('error',error);}
 function sortStatus(text='',error=false) {const el=$('sort-status');el.textContent=text;el.classList.toggle('error',error);}
 async function api(path,method='GET',body) {
+  if(STANDALONE) return standaloneStore.api(path,method,body);
   const response = await fetch('/api'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
   if (!response.ok) {const value = await response.json().catch(()=>({error:`HTTP ${response.status}`}));throw Error(value.error||`HTTP ${response.status}`);}
   return response.status===204?null:response.json();
@@ -53,9 +57,9 @@ function focusTimer(){
 }
 function drawFocus(){
   const focus=focusTimer();
-  $('head-status').textContent=focus?(focus.local?'Lokal · läuft':'Läuft'):'Bereit';
+  $('head-status').textContent=focus?(focus.local&&!STANDALONE?'Lokal · läuft':'Läuft'):'Bereit';
   $('hero-name').textContent=focus?focus.name:'Noch kein Timer aktiv';
-  $('hero-origin').hidden=!focus?.local;
+  $('hero-origin').hidden=STANDALONE||!focus?.local;
   $('hero-controls').hidden=!focus;
   $('focus-panel').classList.toggle('idle',!focus);
   if (focus?.id !== renderedFocusID) renderedFocusID=focus?.id||'';
@@ -85,8 +89,8 @@ function favoriteGroups() {
     {name:'',items:favs.filter(f=>!groupOf(f))}].filter(g=>g.items.length);
 }
 function favoriteCard(fav){
-  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}, starten"><span class="fav-name">${esc(fav.name)}</span><span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only?'<span class="fav-local">Nur Browser</span>':''}<span class="fav-play">▶ Starten</span></button></article>`;
-  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
+  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}, starten"><span class="fav-name">${esc(fav.name)}</span><span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}<span class="fav-play">▶ Starten</span></button></article>`;
+  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
 }
 function drawFavorites(force=false){
   const favs=current.templates||[];
@@ -121,7 +125,7 @@ function drawOthers(){
   const key=JSON.stringify(timers);
   if(key===renderedTimerKey)return;
   renderedTimerKey=key;
-  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><div><strong>${esc(t.name)}</strong><div class="timer-meta">${t.local?'Nur in diesem Browser · ':''}${t.status==='finished'?'Fertig':t.status==='paused'?'Pausiert':'Läuft'}</div></div><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
+  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><div><strong>${esc(t.name)}</strong><div class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='finished'?'Fertig':t.status==='paused'?'Pausiert':'Läuft'}</div></div><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
 }
 function draw(){drawFocus();drawFavorites();drawOthers();}
 async function commitOrder(ids){
@@ -177,14 +181,14 @@ async function timerControl(id, action, deltaText) {
   return api('/timers/'+encodeURIComponent(id)+'/'+action,'POST');
 }
 const formOptions = prefix => ({
-  browser_only:$(prefix+'browser-only').checked,
+  browser_only:STANDALONE||$(prefix+'browser-only').checked,
   notify:$(prefix+'notify').checked,
   sound:$(prefix+'sound').checked
 });
 function startTimer(duration,name,templateId,options={}){
   const fav=templateId?(current.templates||[]).find(f=>f.id===templateId):null;
   if(templateId&&!fav) throw Error('Favorit nicht gefunden.');
-  const config=fav?{browser_only:!!fav.browser_only,notify:fav.notify!==false,sound:fav.sound!==false}:options;
+  const config=fav?{browser_only:STANDALONE||!!fav.browser_only,notify:fav.notify!==false,sound:fav.sound!==false}:{...options,browser_only:STANDALONE||!!options.browser_only};
   if(config.browser_only) return localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config);
   return api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
 }
@@ -199,7 +203,7 @@ function openFavoriteEditor(fav) {
   $('edit-name').value=fav.name;
   $('edit-duration').value=fav.duration;
   $('edit-group').value=fav.group||'';
-  $('edit-browser-only').checked=!!fav.browser_only;
+  $('edit-browser-only').checked=STANDALONE||!!fav.browser_only;
   $('edit-notify').checked=fav.notify!==false;
   $('edit-sound').checked=fav.sound!==false;
   $('edit-error').textContent='';
@@ -215,7 +219,7 @@ $('edit-form').addEventListener('submit',async e=>{
   try {
     await api('/templates/'+encodeURIComponent(editID),'PUT',{
       name:$('edit-name').value.trim(),duration:$('edit-duration').value.trim(),
-      group:$('edit-group').value.trim(),browser_only:$('edit-browser-only').checked,
+      group:$('edit-group').value.trim(),browser_only:STANDALONE||$('edit-browser-only').checked,
       notify:$('edit-notify').checked,sound:$('edit-sound').checked
     });
     $('favorite-dialog').close();
@@ -264,12 +268,12 @@ document.addEventListener('click',e=>{
   }
   perform(()=>timerControl(id,action));
 });
-const events=new EventSource('/api/events');
-events.addEventListener('state',e=>{
+const events=STANDALONE?null:new EventSource('/api/events');
+events?.addEventListener('state',e=>{
   try{const event=JSON.parse(e.data);apply(event.state);if(event.type==='finished'&&event.timer)alertFinished(event.timer,showFinished);$('connect').textContent='Verbunden';$('live').classList.remove('off');}
   catch(error){console.error(error);}
 });
-events.addEventListener('error',()=>{$('connect').textContent='Verbinde erneut …';$('live').classList.add('off');});
+events?.addEventListener('error',()=>{$('connect').textContent='Verbinde erneut …';$('live').classList.add('off');});
 $('finished-close').addEventListener('click',()=>{$('finished-banner').hidden=true;clearTimeout(bannerTimer);});
 document.addEventListener('pointerdown', unlockAudio, {passive:true});
 function updateNotificationButton(){
@@ -285,10 +289,37 @@ $('notifications-enable').addEventListener('click',async()=>{
 });
 updateNotificationButton();
 localTimers=new LocalTimers(combine,t=>alertFinished(t,showFinished));
+if(STANDALONE){
+  standaloneStore=createStandaloneAPI(()=>reload().catch(console.warn));
+  $('connect').textContent='Nur Browser';
+  $('live').classList.remove('off');
+  $('timer-browser-only').checked=true;
+  $('edit-browser-only').checked=true;
+}
 combine();
 // PWA registration and user-confirmed updates are managed in /pwa-update.js.
 window.setInterval(refreshTime,250);
-window.setInterval(()=>{if(events.readyState!==EventSource.OPEN)reload().catch(()=>{});},10000);
+if(!STANDALONE)window.setInterval(()=>{if(events.readyState!==EventSource.OPEN)reload().catch(()=>{});},10000);
 reload().catch(()=>{
-  message('Server nicht erreichbar. Lokale Timer funktionieren offline; gespeicherte Favoriten können lokal gestartet werden.',false);
+  if(!STANDALONE)message('Server nicht erreichbar. Lokale Timer funktionieren offline; gespeicherte Favoriten können lokal gestartet werden.',false);
 });
+if(STANDALONE){
+  $('standalone-export')?.addEventListener('click',()=>{
+    const data=JSON.stringify(standaloneStore.exportBackup(localTimers.all()),null,2);
+    const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='nexttimer-backup.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  $('standalone-import')?.addEventListener('change',async e=>{
+    const file=e.target.files?.[0];if(!file)return;
+    try{
+      const data=standaloneStore.importBackup(JSON.parse(await file.text()));
+      if(!confirm('Favoriten und lokale Timer durch die Sicherung ersetzen?'))return;
+      standaloneStore.replaceFavorites(data.favorites);
+      localStorage.setItem('nexttimer.local-timers.v1',JSON.stringify(data.timers));
+      localTimers.timers=localTimers.read();
+      await reload();message('Sicherung importiert.');
+    }catch(err){message(err.message,true);}
+    finally{e.target.value='';}
+  });
+}

@@ -77,3 +77,10 @@
 .logo[href]{text-decoration:none;flex-shrink:0}
 .logo[href]:hover{background:#34614e;color:#c5ffe0}
 .logo[href]:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* Standalone-only local backup controls. */
+.standalone-backup > p {padding:0 23px;margin:0 0 14px}
+.standalone-backup > .form-actions {padding:0 23px 23px}
+.standalone-backup .backup-import {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid var(--stroke);border-radius:9px;cursor:pointer;color:inherit;background:var(--surface, #1e2c3c)}
+.standalone-backup .backup-import:hover {filter:brightness(1.12)}
+@media(max-width:480px){.standalone-backup > p{padding:0 16px}.standalone-backup > .form-actions{padding:0 16px 16px}.standalone-backup .backup-import{width:100%}}

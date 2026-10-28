@@ -49,7 +49,7 @@ export async function alertFinished(timer, showInApp) {
   if (timer.sound!==false) playFinishSound();
   if (timer.notify===false || permission()!=='granted') return;
   const title=`${timer.name} – Fertig!`;
-  const opts={body:'Der Countdown ist abgelaufen.',tag:`nexttimer-${timer.local?'local':'server'}-${timer.id}-${timer.created_at_ms}`,icon:'/icons/icon-192.png'};
+  const opts={body:'Der Countdown ist abgelaufen.',tag:`nexttimer-${timer.local?'local':'server'}-${timer.id}-${timer.created_at_ms}`,icon:new URL('../icons/icon-192.png', import.meta.url).href};
   try {
     if ('serviceWorker' in navigator) {
       const reg=await navigator.serviceWorker.getRegistration();

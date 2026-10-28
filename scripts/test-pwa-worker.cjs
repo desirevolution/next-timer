@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const ORIGIN = 'https://nexttimer.example';
 const script = fs.readFileSync(require('node:path').join(__dirname, '../internal/server/ui/sw.js'), 'utf8');
 
-function harness() {
+function harness(basePath = '/') {
   const listeners = {};
   const storage = new Map();
   let offline = false;
@@ -36,7 +36,7 @@ function harness() {
     async delete(name) {return storage.delete(name);},
   };
   const self = {
-    location: {origin: ORIGIN},
+    location: {origin: ORIGIN, href: ORIGIN + basePath + 'sw.js'},
     clients: {async claim(){}},
     addEventListener: (type, handler) => listeners[type] = handler,
     skipWaiting: () => {skipWaiting = true;},
@@ -58,16 +58,16 @@ function harness() {
 }
 (async () => {
   const sw = harness();
-  await sw.caches.open('nexttimer-pwa-v22');
+  await sw.caches.open('nexttimer-pwa-v23');
   await sw.lifetime('install');
-  assert((await sw.caches.keys()).includes('nexttimer-pwa-v23'));
+  assert((await sw.caches.keys()).includes('nexttimer-pwa-%2F-v24'));
   assert.equal(sw.wasSkipped(),false,'updates must wait for user approval');
   await sw.lifetime('activate');
-  assert.deepEqual(await sw.caches.keys(),['nexttimer-pwa-v23']);
+  assert.deepEqual(await sw.caches.keys(),['nexttimer-pwa-%2F-v24']);
   assert.match(await (await sw.request('/','navigate')).text(),/^LIVE \/$/,'navigation must be network-first');
   sw.setOffline(true);
   assert.match(await (await sw.request('/','navigate')).text(),/^LIVE \/index.html$/,'offline shell must work');
-  assert.match(await (await sw.request('/js/app.js?v=23')).text(),/^LIVE \/js\/app.js$/,'offline JS must work');
+  assert.match(await (await sw.request('/js/app.js?v=24')).text(),/^LIVE \/js\/app.js$/,'offline JS must work');
   assert.equal(await sw.request('/api/state'),null,'API must not be cached');
   assert.equal(await sw.request('/api/pwa-repair','navigate'),null,'rescue route must bypass old workers');
   assert.equal(await sw.request('/sw.js'),null,'worker script must not be cached');
@@ -77,5 +77,13 @@ function harness() {
   const broken = harness();
   broken.setBadScript(true);
   await assert.rejects(broken.lifetime('install'), /Invalid offline asset/,'HTML must never be cached as JavaScript');
-  console.log('PWA worker: online, offline, update approval, repair, invalid content types OK');
+  const sub = harness('/next-timer/');
+  await sub.lifetime('install');
+  assert((await sub.caches.keys()).includes('nexttimer-pwa-%2Fnext-timer%2F-v24'));
+  await sub.lifetime('activate');
+  sub.setOffline(true);
+  assert.match(await (await sub.request('/next-timer/','navigate')).text(),/LIVE \/next-timer\/index.html/);
+  assert.match(await (await sub.request('/next-timer/js/app.js?v=24')).text(),/LIVE \/next-timer\/js\/app.js/);
+  assert.equal(await sub.request('/api/state'),null);
+  console.log('PWA worker: root/subpath, online/offline, update approval, repair, invalid content types OK');
 })().catch(err => {console.error(err);process.exitCode=1;});
