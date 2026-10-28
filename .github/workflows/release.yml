@@ -33,6 +33,13 @@ jobs:
           go mod tidy
           go test ./...
 
+      - name: Test static PWA and worker
+        run: |
+          node scripts/test-pwa-worker.cjs
+          node --experimental-default-type=module scripts/test-standalone-store.mjs
+          python3 scripts/build-static.py --output dist/static --version ci
+          test -f dist/static/pwa-repair.html
+
   build:
     name: Build Linux ${{ matrix.arch }}
     if: github.event_name == 'release'
@@ -212,3 +219,36 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$RELEASE_TAG" release/*.tar.gz release/SHA256SUMS --clobber
+
+  publish-static:
+    name: Attach browser-only PWA to GitHub release
+    if: github.event_name == 'release'
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build static PWA
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          python3 scripts/build-static.py --output dist/static --version "$TAG"
+          mkdir -p release
+          cd dist/static
+          zip -r -q "../../release/nexttimer-static-${TAG}.zip" .
+
+      - name: Upload static release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" release/*.zip --clobber
