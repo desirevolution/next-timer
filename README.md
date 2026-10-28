@@ -97,4 +97,10 @@ For Docker-based Linux AMD64 and ARM64 builds:
 ./scripts/build-binaries-docker.sh
 ```
 
-Tagged releases publish the server image to [GHCR](https://github.com/desirevolution/next-timer/pkgs/container/next-timer) and attach both binaries to the [GitHub release](https://github.com/desirevolution/next-timer/releases).
+## About this project
+
+This project was built with AI assistance. I'm a lazy dev.
+
+## License
+
+[MIT](LICENSE).
