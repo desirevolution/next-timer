@@ -1,6 +1,6 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=22';
-import {LocalTimers} from './local-timers.js?v=22';
-import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=22';
+import {enableFavoriteSorting} from './favorite-sort.js?v=23';
+import {LocalTimers} from './local-timers.js?v=23';
+import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=23';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

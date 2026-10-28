@@ -45,10 +45,48 @@ func (api API) Handler() http.Handler {
 	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/", "/index.html", "/sw.js", "/pwa-update.js":
+			w.Header().Set("Cache-Control", "no-store")
+			if r.URL.Path == "/sw.js" {
+				w.Header().Set("Service-Worker-Allowed", "/")
+			}
+		default:
+			// The service worker manages offline assets. Avoid a second stale
+			// version being served from the browser's HTTP cache.
 			w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
 		}
 		staticHandler.ServeHTTP(w, r)
 	}))
+	// Deliberately placed under /api/: older NextTimer workers bypass this
+	// prefix, so the repair page remains reachable even if their cached shell
+	// is broken. This only clears the NextTimer *service worker* cache and
+	// registration, never localStorage or saved browser-only timers.
+	mux.HandleFunc("GET /api/pwa-repair", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NextTimer – PWA reparieren</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:34rem;margin:4rem auto;padding:0 1rem;background:#0b1019;color:#f0f5fa}button{padding:.8rem 1.2rem;border:0;border-radius:8px;background:#9ce8bd;color:#10251b;font:inherit;cursor:pointer}a{color:#9ce8bd}</style>
+<h1>NextTimer – PWA reparieren</h1><p>Falls NextTimer nicht mehr startet, kannst du den PWA-Cache und die Service-Worker-Registrierung zurücksetzen. Lokale Timer und Favoritendaten im Browser bleiben erhalten.</p>
+<button id="repair">PWA-Cache reparieren</button><p id="status" role="status"></p><p><a href="/">Zurück zu NextTimer</a></p>
+<script>
+document.querySelector('#repair').addEventListener('click',async()=>{
+  const button=document.querySelector('#repair');const status=document.querySelector('#status');
+  button.disabled=true;status.textContent='PWA wird repariert …';
+  try {
+    if('serviceWorker' in navigator){
+      const registrations=await navigator.serviceWorker.getRegistrations();
+      const appScope=new URL('/',location.origin).href;
+      await Promise.all(registrations.filter(reg=>reg.scope===appScope).map(reg=>reg.unregister()));
+    }
+    if('caches' in window){
+      const names=await caches.keys();
+      await Promise.all(names.filter(name=>name.startsWith('nexttimer-pwa-')).map(name=>caches.delete(name)));
+    }
+    // Keep localStorage/IndexedDB intact so local timer data survives.
+    location.replace('/?pwa-repaired=1');
+  }catch(error){button.disabled=false;status.textContent='Reparatur fehlgeschlagen: '+error.message;}
+});
+</script></html>`)
+	})
 	mux.HandleFunc("GET /manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
 		body, err := fs.ReadFile(static, "manifest.webmanifest")
 		if err != nil {

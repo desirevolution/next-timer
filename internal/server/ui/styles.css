@@ -72,3 +72,8 @@
 .group-actions button{min-height:36px;min-width:40px;padding:5px 10px}
 .group-actions button:disabled{opacity:.4;cursor:default}
 @media(max-width:480px){.favorite-group-heading{align-items:flex-start}.group-actions{justify-content:flex-end}}
+
+/* The app icon links to the source repository without changing the header layout. */
+.logo[href]{text-decoration:none;flex-shrink:0}
+.logo[href]:hover{background:#34614e;color:#c5ffe0}
+.logo[href]:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
