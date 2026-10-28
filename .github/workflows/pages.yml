@@ -1,0 +1,44 @@
+name: Deploy Standalone PWA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build browser-only PWA
+        run: python3 scripts/build-static.py --output dist/static --version "${GITHUB_SHA::12}"
+      - name: Test browser storage and service worker
+        run: |
+          node scripts/test-pwa-worker.cjs
+          node --experimental-default-type=module scripts/test-standalone-store.mjs
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload static files
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/static
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
