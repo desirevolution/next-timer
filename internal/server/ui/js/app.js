@@ -1,6 +1,6 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=21';
-import {LocalTimers} from './local-timers.js?v=21';
-import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=21';
+import {enableFavoriteSorting} from './favorite-sort.js?v=22';
+import {LocalTimers} from './local-timers.js?v=22';
+import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=22';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -102,7 +102,7 @@ function drawFavorites(force=false){
   $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'Ein Klick startet den Timer.';
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
-    ${headings?`<div class="favorite-group-heading"><h3>${esc(g.name||'Standard')}</h3>${sorting&&g.name?`<button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button>`:''}</div>`:''}
+    ${headings?`<div class="favorite-group-heading"><h3>${esc(g.name||'Standard')}</h3>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
     <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Öffne „Neuen Timer erstellen“, um einen anzulegen.</p>';
   if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
     const cards=[...group.querySelectorAll('.fav-card')];
@@ -146,6 +146,19 @@ function moveFavorite(id,delta){
   const otherID=peers[next],to=ids.indexOf(otherID);
   [ids[from],ids[to]]=[ids[to],ids[from]];
   commitOrder(ids);
+}
+async function moveGroup(name, delta) {
+  if(savingOrder)return;
+  const groups=[...(current.groups||[])];
+  const index=groups.findIndex(g=>g.toLowerCase()===name.toLowerCase());
+  const target=index+delta;
+  if(index<0||target<0||target>=groups.length)return;
+  [groups[index],groups[target]]=[groups[target],groups[index]];
+  savingOrder=true;
+  sortStatus('Speichere Gruppenreihenfolge …');
+  try {apply(await api('/groups/order','PUT',{groups}));sortStatus('Gruppenreihenfolge gespeichert.');}
+  catch(e){sortStatus(e.message,true);await reload().catch(()=>{});}
+  finally {savingOrder=false;}
 }
 function showFinished(timer) {
   $('finished-label').textContent=`„${timer.name}“ ist fertig.`;
@@ -232,6 +245,7 @@ document.addEventListener('click',e=>{
   const button=e.target.closest('button[data-action]');
   if(!button)return;
   const {action,id}=button.dataset;
+  if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();return;}
   if(action==='fav-up'||action==='fav-down'){moveFavorite(id,action==='fav-up'?-1:1);return;}
   if(action==='start-fav'){if(!sorting)perform(()=>startTimer('','',id));return;}

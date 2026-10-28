@@ -191,6 +191,20 @@ func (api API) Handler() http.Handler {
 		}
 		respond(w, 200, api.Service.Snapshot())
 	})
+	mux.HandleFunc("PUT /api/groups/order", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Groups []string `json:"groups"`
+		}
+		if err := decodeBody(r, &req); err != nil {
+			apiError(w, 400, err)
+			return
+		}
+		if err := api.Service.ReorderGroups(req.Groups); err != nil {
+			apiError(w, 409, err)
+			return
+		}
+		respond(w, 200, api.Service.Snapshot())
+	})
 	mux.HandleFunc("PUT /api/groups/{name}", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Name string `json:"name"`

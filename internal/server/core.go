@@ -307,15 +307,31 @@ func (s *Service) StartConfigured(name string, duration time.Duration, options T
 func (s *Service) StartTemplate(templateID string) (*TimerView, error) {
 	s.mu.Lock()
 	var selected *Template
+	matches := 0
+	// IDs always win; names are only accepted when they identify a single favorite.
 	for i := range s.templates {
 		t := &s.templates[i]
-		if t.ID == templateID || strings.EqualFold(t.Name, templateID) {
-			c := *t
-			selected = &c
+		if t.ID == templateID {
+			copy := *t
+			selected = &copy
+			matches = 1
 			break
 		}
 	}
+	if selected == nil {
+		for i := range s.templates {
+			t := &s.templates[i]
+			if strings.EqualFold(t.Name, templateID) {
+				copy := *t
+				selected = &copy
+				matches++
+			}
+		}
+	}
 	s.mu.Unlock()
+	if matches > 1 {
+		return nil, errors.New("Favoritenname ist mehrdeutig; bitte Favoriten-ID verwenden")
+	}
 	if selected == nil {
 		return nil, errors.New("Vorlage nicht gefunden")
 	}
@@ -460,14 +476,14 @@ func (s *Service) AddTemplateConfigured(opts Template) (Template, error) {
 	if err != nil {
 		return Template{}, err
 	}
-	for _, t := range s.templates {
-		if strings.EqualFold(t.Name, name) {
-			return Template{}, errors.New("Name bereits vergeben")
-		}
-	}
 	group, err := cleanGroup(opts.Group)
 	if err != nil {
 		return Template{}, err
+	}
+	for _, t := range s.templates {
+		if strings.EqualFold(t.Name, name) && sameGroup(t.Group, group) {
+			return Template{}, errors.New("Name in dieser Gruppe bereits vergeben")
+		}
 	}
 	order := 0
 	if group != "" {
@@ -526,6 +542,45 @@ func (s *Service) ReorderTemplates(ids []string) error {
 	return nil
 }
 
+// ReorderGroups stores the order of non-default groups by updating the
+// group_order metadata of every member. The implicit default group stays last.
+// IDs of favorites and their order within each group are left unchanged.
+func (s *Service) ReorderGroups(names []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current := groupNames(s.templates)
+	if len(names) != len(current) {
+		return errors.New("Gruppen wurden verändert; bitte Ansicht aktualisieren")
+	}
+	canonical := make(map[string]string, len(current))
+	for _, name := range current {
+		canonical[strings.ToLower(name)] = name
+	}
+	positions := make(map[string]int, len(names))
+	for i, name := range names {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if _, ok := canonical[key]; !ok {
+			return errors.New("Unbekannte Gruppe")
+		}
+		if _, exists := positions[key]; exists {
+			return errors.New("Doppelte Gruppe")
+		}
+		positions[key] = i + 1
+	}
+	list := append([]Template{}, s.templates...)
+	for i := range list {
+		if list[i].Group != "" {
+			list[i].GroupOrder = positions[strings.ToLower(list[i].Group)]
+		}
+	}
+	orderGroups(list)
+	if err := s.saveTemplatesLocked(list); err != nil {
+		return err
+	}
+	s.publishLocked("groups_reordered", nil, time.Now())
+	return nil
+}
+
 func (s *Service) UpdateTemplate(id, name, duration string) (Template, error) {
 	return s.UpdateTemplateConfigured(id, Template{Name: name, Duration: duration})
 }
@@ -541,13 +596,17 @@ func (s *Service) UpdateTemplateConfigured(id string, opts Template) (Template, 
 	if err != nil {
 		return Template{}, err
 	}
+	group, err := cleanGroup(opts.Group)
+	if err != nil {
+		return Template{}, err
+	}
 	list := append([]Template{}, s.templates...)
 	index := -1
 	for i, t := range list {
 		if t.ID == id {
 			index = i
-		} else if strings.EqualFold(t.Name, name) {
-			return Template{}, errors.New("Name bereits vergeben")
+		} else if strings.EqualFold(t.Name, name) && sameGroup(t.Group, group) {
+			return Template{}, errors.New("Name in dieser Gruppe bereits vergeben")
 		}
 	}
 	if index < 0 {
@@ -555,10 +614,6 @@ func (s *Service) UpdateTemplateConfigured(id string, opts Template) (Template, 
 	}
 	list[index].Name = name
 	list[index].Duration = d.String()
-	group, err := cleanGroup(opts.Group)
-	if err != nil {
-		return Template{}, err
-	}
 	oldGroup := list[index].Group
 	if !sameGroup(group, oldGroup) {
 		moved := list[index]

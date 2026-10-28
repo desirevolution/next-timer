@@ -66,3 +66,9 @@
 
 .favorite-group-field{margin:0 0 16px;max-width:510px}.favorite-group-field small{display:block;margin-top:6px}.edit-dialog .fields{grid-template-columns:1fr 1fr}
 @media(max-width:480px){.edit-dialog .fields{grid-template-columns:1fr}}
+
+/* Group-order controls are only shown in favorite edit mode. */
+.group-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.group-actions button{min-height:36px;min-width:40px;padding:5px 10px}
+.group-actions button:disabled{opacity:.4;cursor:default}
+@media(max-width:480px){.favorite-group-heading{align-items:flex-start}.group-actions{justify-content:flex-end}}

@@ -1,10 +1,10 @@
 // A new worker is installed in the background but waits for an explicit update click.
 // Bump VERSION AND the asset query in index.html/app.js for each release.
-const VERSION = 'v21';
+const VERSION = 'v22';
 const CACHE = 'nexttimer-pwa-' + VERSION;
 const ASSETS = [
-  '/', '/index.html', '/styles.css?v=21', '/js/app.js?v=21',
-  '/js/favorite-sort.js?v=21', '/js/local-timers.js?v=21', '/js/alerts.js?v=21',
+  '/', '/index.html', '/styles.css?v=22', '/js/app.js?v=22',
+  '/js/favorite-sort.js?v=22', '/js/local-timers.js?v=22', '/js/alerts.js?v=22',
   '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'
 ];
 self.addEventListener('install', event => {

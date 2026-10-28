@@ -33,7 +33,7 @@ Both Compose files use the same settings and persistent Docker volume. Use one o
 
 ## Web app
 
-The web app lets you start and control timers, save favorites, and arrange favorites into groups. It can also be installed as a PWA.
+The web app lets you start and control timers, save favorites, and arrange favorites into groups. Groups can be reordered in edit mode. Favorite names must be unique within a group, but can be reused in different groups. It can also be installed as a PWA.
 
 Timers marked **Browser only** run locally and do not use the server, AWTRIX, or the webhook. Browser notifications are available when permitted, but a local timer cannot guarantee an alarm while the app is closed.
 

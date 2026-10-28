@@ -59,6 +59,7 @@ func request(method, path string, payload any, out any) error {
 	}
 	return nil
 }
+
 func state() (protocol.Snapshot, error) {
 	var s protocol.Snapshot
 	err := request("GET", "/api/state", nil, &s)
@@ -222,16 +223,9 @@ func RunWithClientOptions(args []string, opt Options) error {
 			return err
 		}
 		name := strings.Join(args[1:], " ")
-		var chosen *protocol.Template
-		for i := range s.Templates {
-			t := &s.Templates[i]
-			if t.ID == name || strings.EqualFold(t.Name, name) || name == fmt.Sprintf("#%d", i+1) {
-				chosen = t
-				break
-			}
-		}
-		if chosen == nil {
-			return errors.New("Favorit nicht gefunden")
+		chosen, err := favoriteBySelector(s.Templates, name)
+		if err != nil {
+			return err
 		}
 		if opt.Local || chosen.BrowserOnly {
 			if opt.KeepRunning {
@@ -361,7 +355,11 @@ func favorite(args []string) error {
 			return err
 		}
 		for i, t := range s.Templates {
-			fmt.Printf("#%-3d %-22s %-10s %s\n", i+1, t.Name, t.Duration, t.ID)
+			group := t.Group
+			if group == "" {
+				group = "Standard"
+			}
+			fmt.Printf("#%-3d %-22s %-10s %-16s %s\n", i+1, t.Name, t.Duration, group, t.ID)
 		}
 		return nil
 	}
@@ -386,16 +384,15 @@ func favorite(args []string) error {
 			return err
 		}
 		name := strings.Join(args[1:], " ")
-		for i, t := range s.Templates {
-			if t.ID == name || strings.EqualFold(t.Name, name) || name == fmt.Sprintf("#%d", i+1) {
-				if err := request("DELETE", "/api/templates/"+url.PathEscape(t.ID), nil, nil); err != nil {
-					return err
-				}
-				fmt.Printf("Favorit entfernt: %s\n", t.Name)
-				return nil
-			}
+		t, err := favoriteBySelector(s.Templates, name)
+		if err != nil {
+			return err
 		}
-		return errors.New("Favorit nicht gefunden")
+		if err := request("DELETE", "/api/templates/"+url.PathEscape(t.ID), nil, nil); err != nil {
+			return err
+		}
+		fmt.Printf("Favorit entfernt: %s\n", t.Name)
+		return nil
 	}
 	return errors.New("Unbekannter Favoriten-Befehl")
 }
