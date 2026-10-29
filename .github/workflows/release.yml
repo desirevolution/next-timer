@@ -35,6 +35,7 @@ jobs:
 
       - name: Test static PWA and worker
         run: |
+          python3 scripts/test-ux-markup.py
           python3 scripts/test-static-manifest.py
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-quick-timer.mjs
