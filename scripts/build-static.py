@@ -5,6 +5,7 @@ No bundler or Go runtime required. The result can be hosted at any URL prefix.
 """
 from __future__ import annotations
 import argparse
+import json
 from pathlib import Path
 import re
 import shutil
@@ -25,6 +26,21 @@ def build(destination:Path,version:str)->None:
     index=dest/'index.html'
     page=index.read_text()
     page=page.replace('<html lang="de">','<html lang="de" data-mode="standalone">')
+    # This edition has a separate launcher label and window title. Keep the
+    # shared server UI source and its PWA manifest unchanged.
+    page=page.replace('<title>NextTimer</title>',
+        '<title>NextTimer Local</title>\n  <meta name="apple-mobile-web-app-title" content="NextTimer Local">',1)
+    manifest_path=dest/'manifest.webmanifest'
+    manifest=json.loads(manifest_path.read_text())
+    manifest.update({
+        'name':'NextTimer Local',
+        'short_name':'NT Local',
+        'description':'Countdown-Timer mit lokalen Favoriten, ohne Server',
+    })
+    # Do not add a fixed manifest ID. Without one the browser uses start_url:
+    # that keeps existing installs stable and makes arbitrary static subpaths
+    # independently installable on the same origin.
+    manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     # Keep the checkbox element for the shared form handlers, but remove the
     # user-facing local/server switch. The standalone mode is not optional.
     for element_id in ('timer-browser-only','edit-browser-only'):
