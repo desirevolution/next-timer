@@ -14,6 +14,43 @@ let nextAudioTime = 0;
 const active = new Map();
 const audioByAlarm = new Map();
 let onChange = () => {};
+// The tab alarm is purely visual. It never controls the browser alarm itself.
+let tabInitialized = false;
+let normalTitle = 'NextTimer';
+let normalIcon = '';
+let iconElement = null;
+let tabAlarmVisible = false;
+let tabPulse = false;
+
+function updateTabAlarm() {
+  if (!tabInitialized) return;
+  // Only use the browser tab as a secondary indicator when the page is hidden.
+  // A red icon is persistent; title animation is deliberately non-essential
+  // because background timers may be throttled or suspended by the browser.
+  const pending = [...active.values()].filter(a => a.alarm.visual);
+  if (!document.hidden || pending.length === 0) {
+    if (tabAlarmVisible) {
+      document.title = normalTitle;
+      if (iconElement) iconElement.setAttribute('href', normalIcon);
+      tabAlarmVisible = false;
+    }
+    return;
+  }
+  if (!tabAlarmVisible) {
+    if (iconElement) iconElement.setAttribute('href', new URL('../icons/icon-alarm.png', import.meta.url).href);
+    tabAlarmVisible = true;
+    tabPulse = false;
+  }
+  const label = pending.length === 1
+    ? `${pending[0].name.slice(0, 48)} fertig!`
+    : `${pending.length} Timer fertig!`;
+  document.title = `${tabPulse ? '◉' : '●'} ${label} – ${normalTitle}`;
+}
+function toggleTabTitle() {
+  if (!tabAlarmVisible) return;
+  tabPulse = !tabPulse;
+  updateTabAlarm();
+}
 
 export const canNotify = () => 'Notification' in window && window.isSecureContext;
 export const permission = () => canNotify() ? Notification.permission : 'unsupported';
@@ -139,6 +176,7 @@ function render() {
       ${needsAck?`<button type="button" data-ack="${escapeHTML(a.key)}">Bestätigen</button>`:''}
     </div>`;
   }).join('');
+  updateTabAlarm();
   onChange(pending);
 }
 export function acknowledgeAlarm(key) {
@@ -188,6 +226,12 @@ export function alertFinished(timer) {
 }
 export function initBrowserAlarms(callback=()=>{}) {
   onChange=callback;
+  if (!tabInitialized) {
+    normalTitle = document.title;
+    iconElement = document.querySelector('link[rel~="icon"]');
+    normalIcon = iconElement?.getAttribute('href') ?? '';
+    tabInitialized = true;
+  }
   try {
     const restored=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
     for(const a of Array.isArray(restored)?restored:[]){
@@ -204,6 +248,8 @@ export function initBrowserAlarms(callback=()=>{}) {
   });
   render();
   window.setInterval(soundTick,250);
-  // Keep visual pulse state aligned after background tab suspension.
+  window.setInterval(toggleTabTitle,1200);
+  // Restore the normal title/icon immediately when the tab becomes visible,
+  // and discard expired alarms after background throttling or suspension.
   document.addEventListener('visibilitychange',()=>{soundTick();render();});
 }

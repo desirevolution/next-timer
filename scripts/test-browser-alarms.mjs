@@ -9,6 +9,8 @@ const el=id=>{
   return elements.get(id);
 };
 const freqs=[], volumes=[];
+const documentListeners = {};
+const favicon={href:'icons/icon-192.png',getAttribute(name){return name==='href'?this.href:null;},setAttribute(name,value){if(name==='href')this.href=value;}};
 class AudioContextMock {
   state='running'; currentTime=0; destination={};
   createOscillator(){return {type:'',frequency:{setValueAtTime(n){freqs.push(n);}},connect(){},start(){},stop(){}};}
@@ -16,7 +18,9 @@ class AudioContextMock {
 }
 globalThis.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v))};
 globalThis.window={isSecureContext:false,AudioContext:AudioContextMock,setInterval:fn=>periodic.push(fn),setTimeout(){},addEventListener(){}};
-globalThis.document={getElementById:el,addEventListener(){}};
+globalThis.document={getElementById:el,hidden:false,title:'NextTimer',
+  querySelector:selector=>selector==='link[rel~="icon"]'?favicon:null,
+  addEventListener:(event,callback)=>documentListeners[event]=callback};
 const {getDefaults,saveDefaults,resolveAlarm,alarmWindowMs,initBrowserAlarms,alertFinished,acknowledgeAlarm,acknowledgeAll}=
   await import('../internal/server/ui/js/alerts.js');
 assert.deepEqual(getDefaults(),{tone:'bell',repeat:'once',visual:true,system:true,volume:.6});
@@ -81,4 +85,40 @@ alertFinished(timer('g',{tone:'none',repeat:'once',visual:false,system:true}));
 await Promise.resolve();
 assert.equal(nativeNotifications.length,1);
 assert.equal(nativeNotifications[0].options.silent,true);
-console.log('Browser alarms: only selected initial tone, volume override, synced visual duration, repeats and acknowledgements OK');
+// Tab alert: red favicon and informative title only while the page is hidden.
+const tabAlarm={tone:'none',repeat:'once',visual:true,system:false};
+document.hidden=true;
+documentListeners.visibilitychange();
+alertFinished({...timer('tab',tabAlarm),name:'Tee'});
+assert.equal(favicon.href.endsWith('/icons/icon-alarm.png'),true,'hidden alarm uses red favicon');
+assert.match(document.title,/Tee fertig!/);
+const titleBefore=document.title;
+periodic[1]();
+assert.notEqual(document.title,titleBefore,'title gently alternates its marker without hiding alert text');
+alertFinished({...timer('tab2',tabAlarm),name:'Eier'});
+assert.match(document.title,/2 Timer fertig!/,'multiple alerts show their count');
+document.hidden=false;
+documentListeners.visibilitychange();
+assert.equal(document.title,'NextTimer','visible tab restores title');
+assert.equal(favicon.href,'icons/icon-192.png','visible tab restores favicon');
+document.hidden=true;
+documentListeners.visibilitychange();
+assert.match(document.title,/2 Timer fertig!/,'switching away restores pending indication');
+now+=2000;
+periodic[0]();
+assert.equal(document.title,'NextTimer','automatic alarm expiry restores title');
+assert.equal(favicon.href,'icons/icon-192.png','automatic expiry restores favicon');
+// Persistent alarms stay visible on the tab until the user confirms them.
+alertFinished({...timer('persistent-tab',{...tabAlarm,repeat:'until_ack'}),name:'Pasta'});
+assert.match(document.title,/Pasta fertig!/);
+now+=30000;periodic[0]();
+assert.match(document.title,/Pasta fertig!/);
+acknowledgeAll();
+assert.equal(document.title,'NextTimer');
+assert.equal(favicon.href,'icons/icon-192.png');
+// If visual signaling is explicitly disabled, the tab stays unchanged.
+alertFinished({...timer('silent-tab',{...tabAlarm,repeat:'until_ack',visual:false}),name:'No visual'});
+assert.equal(document.title,'NextTimer');
+assert.equal(favicon.href,'icons/icon-192.png');
+acknowledgeAll();
+console.log('Browser alarms: selected tone, volume, durations, repeats, tab favicon/title, multi-alerts and acknowledgements OK');

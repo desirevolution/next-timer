@@ -7,9 +7,9 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=26">
-  <script type="module" src="js/app.js?v=26"></script>
-  <script defer src="pwa-update.js?v=26"></script>
+  <link rel="stylesheet" href="styles.css?v=29">
+  <script type="module" src="js/app.js?v=29"></script>
+  <script defer src="pwa-update.js?v=29"></script>
 </head>
 <body>
 <main class="shell">
@@ -26,6 +26,23 @@
   <section id="alarm-banner" class="alarm-banner" role="region" aria-label="Abgelaufene Timer" hidden>
     <div class="alarm-banner-head"><strong>Timer abgelaufen <span id="alarm-count"></span></strong><button type="button" id="alarm-ack-all" hidden>Alle bestätigen</button></div>
     <div id="alarm-list" class="alarm-list" aria-live="polite"></div>
+  </section>
+  <section class="panel quick-panel" aria-labelledby="quick-title">
+    <form id="quick-form" novalidate>
+      <h2 id="quick-title">Neuer Timer</h2>
+      <div class="quick-row">
+        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder 1h 15m" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
+        <button id="quick-start" class="primary-button" type="submit" disabled>▶ Start</button>
+      </div>
+      <div class="quick-presets" aria-label="Dauer vorgeben">
+        <button type="button" data-quick-duration="1m">1m</button>
+        <button type="button" data-quick-duration="3m">3m</button>
+        <button type="button" data-quick-duration="5m">5m</button>
+        <button type="button" data-quick-duration="10m">10m</button>
+        <button type="button" data-quick-duration="25m">25m</button>
+      </div>
+      <p id="quick-error" class="quick-error" role="alert" aria-live="polite"></p>
+    </form>
   </section>
   <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel">
     <div class="heading"><h2 id="focus-title">Nächster Ablauf</h2><span class="pill" id="head-status">Bereit</span></div>
@@ -57,7 +74,7 @@
   </section>
 
   <details class="panel extra-panel" id="new-section">
-    <summary><span>＋ Neuen Timer erstellen <span class="subtle">oder Favorit hinzufügen</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
+    <summary><span>＋ Timer mit Optionen erstellen <span class="subtle">oder Favorit hinzufügen</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
     <form id="new-form">
       <div class="fields">
         <div><label for="duration">Dauer</label><input id="duration" value="10m" required placeholder="10m oder 1h30m"></div>

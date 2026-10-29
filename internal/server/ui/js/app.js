@@ -1,7 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=26';
-import {createStandaloneAPI} from './standalone-store.js?v=26';
-import {LocalTimers} from './local-timers.js?v=26';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=26';
+import {enableFavoriteSorting} from './favorite-sort.js?v=29';
+import {createStandaloneAPI} from './standalone-store.js?v=29';
+import {LocalTimers} from './local-timers.js?v=29';
+import {parseQuickTimer} from './quick-timer.js?v=29';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=29';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -89,7 +90,7 @@ function favoriteGroups() {
     {name:'',items:favs.filter(f=>!groupOf(f))}].filter(g=>g.items.length);
 }
 function favoriteCard(fav){
-  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}, starten"><span class="fav-name">${esc(fav.name)}</span><span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}<span class="fav-play">▶ Starten</span></button></article>`;
+  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}, starten"><span class="fav-name">${esc(fav.name)}</span><span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
   return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
 }
 function drawFavorites(force=false){
@@ -108,7 +109,7 @@ function drawFavorites(force=false){
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
     ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
-    <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Öffne „Neuen Timer erstellen“, um einen anzulegen.</p>';
+    <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Öffne „Timer mit Optionen erstellen“, um einen anzulegen.</p>';
   if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
     const cards=[...group.querySelectorAll('.fav-card')];
     cards.forEach((card,i)=>{
@@ -251,6 +252,69 @@ function startTimer(duration,name,templateId,options={}){
   if(config.browser_only) return localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config);
   return api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
 }
+// Quick start is a separate, one-line path. The advanced form remains available
+// for per-timer alarm settings and saving a favorite.
+const quickInput = $('quick-input');
+const quickButton = $('quick-start');
+const quickError = $('quick-error');
+let quickPending = false;
+function clearQuickError() {
+  quickError.textContent = '';
+  quickInput.removeAttribute('aria-invalid');
+}
+quickInput.addEventListener('input', () => {
+  clearQuickError();
+  if (!quickPending) quickButton.disabled = !quickInput.value.trim();
+});
+$('quick-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (quickPending) return;
+  clearQuickError();
+  let entry;
+  try { entry = parseQuickTimer(quickInput.value); }
+  catch (error) {
+    quickError.textContent = error.message;
+    quickInput.setAttribute('aria-invalid', 'true');
+    quickInput.focus();
+    return;
+  }
+  quickPending = true;
+  quickButton.disabled = true;
+  try {
+    await startTimer(entry.duration, entry.name, null, {browser_only:STANDALONE, alarm:null});
+    quickInput.value = '';
+    message();
+    // On touch devices, remove the software keyboard after a successful start.
+    if (window.matchMedia?.('(pointer: coarse)').matches) quickInput.blur();
+    await reload().catch(() => draw());
+  } catch (error) {
+    quickError.textContent = error.message;
+    quickInput.setAttribute('aria-invalid', 'true');
+  } finally {
+    quickPending = false;
+    quickButton.disabled = !quickInput.value.trim();
+  }
+});
+document.querySelectorAll('[data-quick-duration]').forEach(button => button.addEventListener('click', () => {
+  quickInput.value = button.dataset.quickDuration;
+  quickInput.dispatchEvent(new Event('input', {bubbles:true}));
+  quickInput.focus();
+  quickInput.setSelectionRange(quickInput.value.length,quickInput.value.length);
+}));
+document.addEventListener('keydown', event => {
+  if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (document.querySelector('dialog[open]')) return;
+  const target = event.target;
+  const editing = target instanceof HTMLElement && (target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName));
+  if (event.key === 'Escape' && target === quickInput) {
+    event.preventDefault();
+    quickInput.value = '';
+    quickInput.dispatchEvent(new Event('input', {bubbles:true}));
+  } else if (event.key.toLowerCase() === 'n' && !editing && !event.repeat) {
+    event.preventDefault();
+    quickInput.focus();
+  }
+});
 $('new-form').addEventListener('submit',e=>{e.preventDefault();perform(()=>startTimer($('duration').value,$('name').value,null,formOptions('timer-')));});
 $('save-favorite').addEventListener('click',async()=>{
   const name=$('name').value.trim()||'Timer';
