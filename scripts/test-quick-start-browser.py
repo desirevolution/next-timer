@@ -52,8 +52,13 @@ with sync_playwright() as pw:
         field=page.locator('#quick-input')
         assert field.input_value()==''
         assert page.locator('#quick-start').is_disabled()
+        assert not page.locator('.shortcut-hint').count()
+        # Physical-keyboard desktops start ready to type; touch devices never
+        # trigger an unwanted software keyboard on initial page load.
+        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100)
+        page.locator('#sort-toggle').focus()
         page.keyboard.press('n')
-        assert field.evaluate('(el)=>el===document.activeElement')
+        assert page.locator('#sort-toggle').evaluate('(el)=>el===document.activeElement'), 'N must not override normal focus'
         field.fill('bad input');field.press('Enter')
         assert page.locator('#quick-error').inner_text()
         assert page.locator('#hero-name').inner_text()=='Noch kein Timer aktiv'
@@ -66,14 +71,31 @@ with sync_playwright() as pw:
         field.fill('1m Tee');field.press('Enter')
         page.wait_for_function("document.querySelector('#hero-name')?.textContent==='Tee'")
         assert field.input_value()==''
+        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100)
         assert page.locator('#quick-start').is_disabled()
         field.fill('2m Kaffee');page.locator('#quick-start').click()
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='1'")
         assert page.locator('#hero-name').inner_text()=='Tee'
         assert 'Kaffee' in page.locator('#timers').inner_text()
+        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100), 'Button start focus depends on device'
+        # Starting a favorite by mouse returns to the entry; starting it
+        # with Enter respects the keyboard user's current button focus.
+        page.locator('#new-favorite').click()
+        page.locator('#edit-name').fill('Kurz')
+        page.locator('#edit-duration').fill('1m')
+        page.locator('#edit-submit').click()
+        page.wait_for_function("document.querySelectorAll('.fav-start').length===1")
+        favorite=page.locator('.fav-start')
+        favorite.click()
+        page.wait_for_function("document.querySelector('#timer-count')?.textContent==='2'")
+        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100), 'Pointer favorite should restore desktop focus'
+        favorite.focus()
+        favorite.press('Enter')
+        page.wait_for_function("document.querySelector('#timer-count')?.textContent==='3'")
+        assert favorite.evaluate('(el)=>el===document.activeElement'), 'Keyboard favorite must keep its focus'
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert not errors,errors
-        print(f'Quick Timer DOM {width}px: N, Enter, Esc, chips, 2 concurrent timers, no overflow / JS errors OK')
+        print(f'Quick Timer DOM {width}px: desktop/touch focus, no N, Enter, Esc, chips, favorites, no overflow / JS errors OK')
         page.close()
     browser.close()
 

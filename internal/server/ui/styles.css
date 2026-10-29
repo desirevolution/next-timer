@@ -152,9 +152,6 @@ select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 /* NextTimer: quiet primary workflows, accessible compact dialogs */
 .header-actions{display:flex;align-items:center;gap:12px}
 .header-settings{min-width:44px;min-height:44px;font-size:1.24rem;line-height:1;border-radius:12px;background:transparent}
-.quick-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
-.quick-title-row h2{margin:0}
-.shortcut-hint{font:600 .75rem/1 system-ui;color:var(--muted);border:1px solid var(--stroke);padding:5px 8px;border-radius:6px;background:#101b28}
 .quick-options{margin:11px 0 0;border-top:1px solid var(--stroke);padding-top:8px}
 .quick-options>summary{cursor:pointer;font-size:.87rem;color:var(--muted);width:max-content;padding:5px 2px}
 .quick-options[open]>summary{color:var(--fg);margin-bottom:11px}
@@ -206,5 +203,4 @@ select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
   .edit-dialog .dialog-footer button{min-width:0;flex:1 1 0}
   .optional-hint{float:none;display:block;margin:3px 0 0}
   .settings-dialog .dialog-footer{position:sticky;bottom:-18px;background:#151f2d}
-  .shortcut-hint{display:none}
 }

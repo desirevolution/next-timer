@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=31';
-import {createStandaloneAPI} from './standalone-store.js?v=31';
-import {LocalTimers} from './local-timers.js?v=31';
-import {parseQuickTimer} from './quick-timer.js?v=31';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=31';
+import {enableFavoriteSorting} from './favorite-sort.js?v=32';
+import {createStandaloneAPI} from './standalone-store.js?v=32';
+import {LocalTimers} from './local-timers.js?v=32';
+import {parseQuickTimer} from './quick-timer.js?v=32';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=32';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -261,6 +261,12 @@ function startTimer(duration,name,templateId,options={}){
 const quickInput = $('quick-input');
 const quickButton = $('quick-start');
 const quickError = $('quick-error');
+// Only focus a physical-keyboard desktop automatically. On touch devices,
+// focusing the input would unnecessarily open the on-screen keyboard.
+const desktopKeyboard = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
+function focusQuickInput() {
+  if (desktopKeyboard() && !document.querySelector('dialog[open]')) quickInput.focus({preventScroll:true});
+}
 let quickPending = false;
 function clearQuickError() {
   quickError.textContent = '';
@@ -291,8 +297,13 @@ $('quick-form').addEventListener('submit', async event => {
     $('timer-browser-only').checked = STANDALONE;
     profileForm('timer-');
     message();
-    // On touch devices, remove the software keyboard after a successful start.
-    if (window.matchMedia?.('(pointer: coarse)').matches) quickInput.blur();
+    // Start via Enter or button: prepare the next input on desktop. Do not
+    // steal focus if the user has navigated somewhere else during the request.
+    if (desktopKeyboard()) {
+      if ([quickInput, quickButton, document.body].includes(document.activeElement)) focusQuickInput();
+    } else if (document.activeElement === quickInput) {
+      quickInput.blur();
+    }
     await reload().catch(() => draw());
   } catch (error) {
     quickError.textContent = error.message;
@@ -308,19 +319,15 @@ document.querySelectorAll('[data-quick-duration]').forEach(button => button.addE
   quickInput.focus();
   quickInput.setSelectionRange(quickInput.value.length,quickInput.value.length);
 }));
-document.addEventListener('keydown', event => {
-  if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
-  if (document.querySelector('dialog[open]')) return;
-  const target = event.target;
-  const editing = target instanceof HTMLElement && (target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName));
-  if (event.key === 'Escape' && target === quickInput) {
-    event.preventDefault();
-    quickInput.value = '';
-    quickInput.dispatchEvent(new Event('input', {bubbles:true}));
-  } else if (event.key.toLowerCase() === 'n' && !editing && !event.repeat) {
-    event.preventDefault();
-    quickInput.focus();
-  }
+// Escape only clears the quick entry; all other keys remain available to
+// regular typing, tab navigation and native dialog controls.
+quickInput.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing ||
+      event.altKey || event.ctrlKey || event.metaKey ||
+      (!quickInput.value && !quickError.textContent)) return;
+  event.preventDefault();
+  quickInput.value = '';
+  quickInput.dispatchEvent(new Event('input', {bubbles:true}));
 });
 function durationForEditor(ms){
   if(!Number.isFinite(ms))return '';
@@ -424,7 +431,17 @@ document.addEventListener('click',e=>{
   if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}
   if(action==='fav-up'||action==='fav-down'){moveFavorite(id,action==='fav-up'?-1:1);return;}
-  if(action==='start-fav'){if(!sorting)perform(()=>startTimer('','',id));return;}
+  if(action==='start-fav'){
+    if(!sorting){
+      const startedByPointer=e.detail>0;
+      perform(()=>startTimer('','',id)).then(success=>{
+        // A mouse click starts a favorite and returns to quick entry. Keyboard
+        // activation keeps the focus on the favorite for accessible navigation.
+        if(success && startedByPointer && [button,document.body].includes(document.activeElement)) focusQuickInput();
+      });
+    }
+    return;
+  }
   if(action==='edit-fav'){
     const fav=(current.templates||[]).find(t=>t.id===id);if(!fav)return;
     openFavoriteEditor(fav);return;
@@ -474,6 +491,8 @@ if(STANDALONE){
   $('edit-browser-only').checked=true;
 }
 combine();
+// Focus the main entry on first load, unless another control already has focus.
+if (document.activeElement === document.body) focusQuickInput();
 // PWA registration and user-confirmed updates are managed in /pwa-update.js.
 window.setInterval(refreshTime,250);
 if(!STANDALONE)window.setInterval(()=>{if(events.readyState!==EventSource.OPEN)reload().catch(()=>{});},10000);
