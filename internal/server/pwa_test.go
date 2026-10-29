@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -22,8 +23,14 @@ func TestPWARequiresUserUpdateApproval(t *testing.T) {
 		if path == "/sw.js" && (!strings.Contains(body, "SKIP_WAITING") || strings.Contains(body, ".then(()=>self.skipWaiting())")) {
 			t.Fatal("sw must await user approval")
 		}
-		if path == "/" && (!strings.Contains(body, "pwa-update.js?v=27") || !strings.Contains(body, "pwa-update-banner")) {
-			t.Fatal("missing PWA update coordinator")
+		if path == "/" {
+			// The asset revision changes with releases; test that the coordinator
+			// is loaded rather than hardcoding a particular ?v=... suffix.
+			coordinator := regexp.MustCompile(`<script\b[^>]*\bsrc=["'](?:\./)?pwa-update\.js(?:\?v=[^"']+)?["'][^>]*>`)
+			if !coordinator.MatchString(body) || !strings.Contains(body, `id="pwa-update-banner"`) ||
+				!strings.Contains(body, `id="pwa-update-now"`) {
+				t.Fatal("missing PWA update coordinator")
+			}
 		}
 	}
 	w := httptest.NewRecorder()
