@@ -21,14 +21,25 @@ with TemporaryDirectory() as directory:
     index = (target / 'index.html').read_text()
     assert manifest['name'] == 'NextTimer Local'
     assert manifest['short_name'] == 'NT Local'
-    assert manifest['start_url'] == './' and manifest['scope'] == './'
-    # A fixed ID would make multiple self-hosted copies under different
-    # prefixes on the same origin look like the same installed app.
+    assert manifest['start_url'] == './?edition=local' and manifest['scope'] == './'
+    # Without an explicit id, Chromium derives the app identity from start_url.
+    # The edition query must distinguish server/local at the SAME URL while
+    # preserving independent identities for installations under subpaths.
     assert 'id' not in manifest
     assert '<title>NextTimer Local</title>' in index
     assert 'name="apple-mobile-web-app-title" content="NextTimer Local"' in index
-    assert urljoin('https://timer.example.com/', manifest['start_url']) != urljoin(
-        'https://timer.example.com/local/', manifest['start_url'])
-    assert urljoin('https://timer.example.com/local/', manifest['start_url']) != urljoin(
-        'https://timer.example.com/second/', manifest['start_url'])
+    assert 'href="manifest.webmanifest?v=test"' in index
+    assert "'manifest.webmanifest?v=test'" in (target / 'sw.js').read_text()
+    paths = ('/', '/next-timer/', '/another-copy/')
+    for path in paths:
+        base = 'https://timer.example.com' + path
+        local_id = urljoin(base, manifest['start_url'])
+        server_id = urljoin(base, server_manifest['start_url'])
+        assert local_id != server_id, f'Local and server app collision: {path}'
+        assert local_id == base + '?edition=local'
+    assert len({urljoin('https://timer.example.com' + p, manifest['start_url']) for p in paths}) == 3
+    # This must remain stable between releases; never use version in identity.
+    second = Path(directory) / 'second'
+    build(second, 'different-version')
+    assert json.loads((second / 'manifest.webmanifest').read_text())['start_url'] == manifest['start_url']
 print('Standalone PWA naming and path-based identity OK')

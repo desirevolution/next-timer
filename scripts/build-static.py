@@ -36,10 +36,16 @@ def build(destination:Path,version:str)->None:
         'name':'NextTimer Local',
         'short_name':'NT Local',
         'description':'Countdown-Timer mit lokalen Favoriten, ohne Server',
+        # Without an explicit manifest id, the browser derives the identity
+        # from start_url. A stable edition-specific query keeps Local distinct
+        # from the server PWA without hard-coding the deployment path. This
+        # also works at /, /next-timer/, or any self-hosted URL prefix.
+        'start_url':'./?edition=local',
     })
-    # Do not add a fixed manifest ID. Without one the browser uses start_url:
-    # that keeps existing installs stable and makes arbitrary static subpaths
-    # independently installable on the same origin.
+    # Do not set a fixed root-relative manifest id: it would collide when
+    # multiple standalone installs share an origin but use different paths.
+    # Keep this query parameter unchanged in future releases: it is the
+    # persisted installation identity and must not include the build version.
     manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     # Keep the checkbox element for the shared form handlers, but remove the
     # user-facing local/server switch. The standalone mode is not optional.
@@ -74,7 +80,12 @@ def build(destination:Path,version:str)->None:
     # Tag all asset URLs with the build revision so browser/CDN caches cannot
     # mix JS from an older deployment with a new HTML shell.
     for asset in [dest/'index.html',dest/'sw.js',dest/'pwa-update.js',*(dest/'js').glob('*.js')]:
-        asset.write_text(asset.read_text().replace('?v=29',f'?v={version}'))
+        content = asset.read_text().replace('?v=29',f'?v={version}')
+        # The manifest URL changes on each build to avoid stale install
+        # metadata in browsers/CDNs. The app identity itself stays stable.
+        if asset.name in ('index.html', 'sw.js'):
+            content = content.replace('manifest.webmanifest', f'manifest.webmanifest?v={version}')
+        asset.write_text(content)
     worker=dest/'sw.js'
     text=worker.read_text().replace("const VERSION = 'v29';",f"const VERSION = 'static-{version}';")
     worker.write_text(text)
