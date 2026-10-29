@@ -1,7 +1,7 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=25';
-import {createStandaloneAPI} from './standalone-store.js?v=25';
-import {LocalTimers} from './local-timers.js?v=25';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=25';
+import {enableFavoriteSorting} from './favorite-sort.js?v=26';
+import {createStandaloneAPI} from './standalone-store.js?v=26';
+import {LocalTimers} from './local-timers.js?v=26';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=26';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -118,7 +118,23 @@ function drawFavorites(force=false){
   }
   const opts=(current.groups||[]).map(n=>`<option value="${esc(n)}"></option>`).join('');
   $('favorite-group-options').innerHTML=opts;
+  renderGroupPicks();
 }
+function renderGroupPicks() {
+  const groups=favoriteGroups().filter(g=>g.name).map(g=>g.name);
+  for (const prefix of ['timer','edit']) {
+    const field=$(prefix+'-group'), container=$(prefix+'-group-quick');
+    container.hidden=groups.length===0;
+    container.innerHTML=groups.map(name=>`<button type="button" class="group-quick-button" data-group-choice="${esc(prefix)}" data-group-name="${esc(name)}" aria-pressed="${String(field.value.trim().toLocaleLowerCase()===name.toLocaleLowerCase())}">${esc(name)}</button>`).join('');
+  }
+}
+function highlightGroupPicks(prefix) {
+  const selected=$(prefix+'-group').value.trim().toLocaleLowerCase();
+  for(const button of $(prefix+'-group-quick').querySelectorAll('[data-group-choice]')) {
+    button.setAttribute('aria-pressed',String(button.dataset.groupName.toLocaleLowerCase()===selected));
+  }
+}
+for (const prefix of ['timer','edit']) $(prefix+'-group').addEventListener('input',()=>highlightGroupPicks(prefix));
 function drawOthers(){
   // Finished timers are announced by the completion banner, not moved to the active list.
   const timers=(current.timers||[]).filter(t=>t.status!=='finished' && t.id!==focusTimer()?.id);
@@ -184,12 +200,15 @@ function profileForm(prefix,alarm=null) {
   $(prefix+'repeat').value=value.repeat;
   $(prefix+'visual').checked=value.visual;
   $(prefix+'system').checked=value.system;
+  $(prefix+'volume').value=Math.round(value.volume*100);
+  $(prefix+'volume-label').value=`${Math.round(value.volume*100)} %`;
   $(prefix+'alarm-fields').hidden=!custom;
 }
 function profileValues(prefix) {
   if(!$(prefix+'alarm-custom').checked)return null;
   return {tone:$(prefix+'tone').value,repeat:$(prefix+'repeat').value,
-    visual:$(prefix+'visual').checked,system:$(prefix+'system').checked};
+    visual:$(prefix+'visual').checked,system:$(prefix+'system').checked,
+    volume:Number($(prefix+'volume').value)/100};
 }
 function formOptions(prefix) {
   return {browser_only:STANDALONE||$(prefix+'browser-only').checked,alarm:profileValues(prefix)};
@@ -211,15 +230,19 @@ for(const prefix of ['timer-','edit-']){
   $(prefix+'alarm-custom').addEventListener('change',()=>{
     if($(prefix+'alarm-custom').checked)profileForm(prefix,{
       tone:$(prefix+'tone').value,repeat:$(prefix+'repeat').value,
-      visual:$(prefix+'visual').checked,system:$(prefix+'system').checked
+      visual:$(prefix+'visual').checked,system:$(prefix+'system').checked,
+      volume:Number($(prefix+'volume').value)/100
     });
     else profileForm(prefix);
   });
 }
 document.querySelectorAll('[data-preview]').forEach(btn=>btn.addEventListener('click',()=>{
   const prefix=btn.dataset.preview+'-';
-  playFinishSound($(prefix+'tone').value,getDefaults().volume);
+  playFinishSound($(prefix+'tone').value,Number($(prefix+'volume').value)/100);
 }));
+for (const prefix of ['timer-','edit-','global-']) $(prefix+'volume').addEventListener('input',()=>{
+  $(prefix+'volume-label').value=`${$(prefix+'volume').value} %`;
+});
 showGlobalDefaults();profileForm('timer-');profileForm('edit-');
 function startTimer(duration,name,templateId,options={}){
   const fav=templateId?(current.templates||[]).find(f=>f.id===templateId):null;
@@ -232,18 +255,19 @@ $('new-form').addEventListener('submit',e=>{e.preventDefault();perform(()=>start
 $('save-favorite').addEventListener('click',async()=>{
   const name=$('name').value.trim()||'Timer';
   const ok=await perform(()=>api('/templates','POST',{duration:$('duration').value,name,group:$('timer-group').value.trim(),...formOptions('timer-')}));
-  if(ok){$('new-section').open=false;$('new-form').reset();$('duration').value='10m';profileForm('timer-');}
+  if(ok){$('new-section').open=false;$('new-form').reset();$('duration').value='10m';profileForm('timer-');highlightGroupPicks('timer');}
 });
 function openFavoriteEditor(fav) {
   editID=fav.id;
   $('edit-name').value=fav.name;
   $('edit-duration').value=fav.duration;
   $('edit-group').value=fav.group||'';
+  highlightGroupPicks('edit');
   $('edit-browser-only').checked=STANDALONE||!!fav.browser_only;
   const defaults=getDefaults();
   const legacy=(!fav.alarm&&(fav.sound===false||fav.notify===false))?{
     tone:fav.sound===false?'none':defaults.tone,repeat:defaults.repeat,
-    visual:fav.notify===false?false:defaults.visual,system:fav.notify===false?false:defaults.system
+    visual:fav.notify===false?false:defaults.visual,system:fav.notify===false?false:defaults.system,volume:defaults.volume
   }:null;
   profileForm('edit-',fav.alarm??legacy);
   $('edit-error').textContent='';
@@ -286,6 +310,13 @@ $('sort-toggle').addEventListener('click',()=>{
   drawFavorites(true);
 });
 document.addEventListener('click',e=>{
+  const groupButton=e.target.closest('button[data-group-choice]');
+  if(groupButton){
+    const prefix=groupButton.dataset.groupChoice;
+    $(prefix+'-group').value=groupButton.dataset.groupName;
+    highlightGroupPicks(prefix);
+    return;
+  }
   const button=e.target.closest('button[data-action]');
   if(!button)return;
   const {action,id}=button.dataset;

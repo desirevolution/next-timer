@@ -8,6 +8,8 @@ type BrowserAlarm struct {
 	Repeat string `json:"repeat"`
 	Visual bool   `json:"visual"`
 	System bool   `json:"system"`
+	// Optional: nil inherits the browser-wide volume. Zero means muted.
+	Volume *float64 `json:"volume,omitempty"`
 }
 
 type TimerView struct {

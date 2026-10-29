@@ -7,9 +7,9 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=25">
-  <script type="module" src="js/app.js?v=25"></script>
-  <script defer src="pwa-update.js?v=25"></script>
+  <link rel="stylesheet" href="styles.css?v=26">
+  <script type="module" src="js/app.js?v=26"></script>
+  <script defer src="pwa-update.js?v=26"></script>
 </head>
 <body>
 <main class="shell">
@@ -73,11 +73,12 @@
       <div class="alarm-fields" id="timer-alarm-fields" hidden>
         <div><label for="timer-tone">Ton</label><div class="tone-row"><select id="timer-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="timer" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
         <div><label for="timer-repeat">Wiederholung</label><select id="timer-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+        <div class="volume-field"><label for="timer-volume">Lautstärke <output id="timer-volume-label">60 %</output></label><input type="range" id="timer-volume" min="0" max="100" step="5" value="60"></div>
         <label class="check-option"><input type="checkbox" id="timer-visual"><span>Rote Hervorhebung</span></label>
         <label class="check-option"><input type="checkbox" id="timer-system"><span>Systembenachrichtigung</span></label>
       </div>
     </fieldset>
-      <div class="favorite-group-field"><label for="timer-group">Gruppe (nur beim Speichern als Favorit)</label><input id="timer-group" list="favorite-group-options" maxlength="48" placeholder="Standard · oder Gruppennamen eingeben" autocomplete="off"><small class="subtle">Vorhandene Gruppe wählen oder einen neuen Namen eingeben. Leer = Standard.</small></div>
+      <div class="favorite-group-field"><label for="timer-group">Gruppe (nur beim Speichern als Favorit)</label><input id="timer-group" list="favorite-group-options" maxlength="48" placeholder="Standard · oder Gruppennamen eingeben" autocomplete="off"><div id="timer-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div><small class="subtle">Gruppe anklicken oder neuen Namen eingeben. Leer = Standard.</small></div>
       <div class="form-actions">
         <button type="submit" class="primary-button" id="start-btn">▶ Timer starten</button>
         <button type="button" id="save-favorite">☆ Als Favorit speichern</button>
@@ -120,7 +121,7 @@
       <div class="fields">
         <div><label for="edit-duration">Dauer</label><input id="edit-duration" required></div>
         <div><label for="edit-name">Name</label><input id="edit-name" maxlength="80" required></div>
-        <div><label for="edit-group">Gruppe</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"></div>
+        <div class="edit-group-field"><label for="edit-group">Gruppe</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"><div id="edit-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div></div>
       </div>
       <fieldset class="timer-options">
         <legend>Optionen für diesen Favoriten</legend>
@@ -132,6 +133,7 @@
       <div class="alarm-fields" id="edit-alarm-fields" hidden>
         <div><label for="edit-tone">Ton</label><div class="tone-row"><select id="edit-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="edit" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
         <div><label for="edit-repeat">Wiederholung</label><select id="edit-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+        <div class="volume-field"><label for="edit-volume">Lautstärke <output id="edit-volume-label">60 %</output></label><input type="range" id="edit-volume" min="0" max="100" step="5" value="60"></div>
         <label class="check-option"><input type="checkbox" id="edit-visual"><span>Rote Hervorhebung</span></label>
         <label class="check-option"><input type="checkbox" id="edit-system"><span>Systembenachrichtigung</span></label>
       </div>

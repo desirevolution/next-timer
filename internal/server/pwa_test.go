@@ -22,7 +22,7 @@ func TestPWARequiresUserUpdateApproval(t *testing.T) {
 		if path == "/sw.js" && (!strings.Contains(body, "SKIP_WAITING") || strings.Contains(body, ".then(()=>self.skipWaiting())")) {
 			t.Fatal("sw must await user approval")
 		}
-		if path == "/" && (!strings.Contains(body, "pwa-update.js?v=25") || !strings.Contains(body, "pwa-update-banner")) {
+		if path == "/" && (!strings.Contains(body, "pwa-update.js?v=26") || !strings.Contains(body, "pwa-update-banner")) {
 			t.Fatal("missing PWA update coordinator")
 		}
 	}

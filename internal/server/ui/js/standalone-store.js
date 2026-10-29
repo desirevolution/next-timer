@@ -1,6 +1,6 @@
 // Browser-only favorite storage. The public API mirrors the small set of
 // template endpoints used by the shared NextTimer frontend; no HTTP is sent.
-import {parseTimerDuration} from './local-timers.js?v=25';
+import {parseTimerDuration} from './local-timers.js?v=26';
 
 const KEY = 'nexttimer.standalone.templates.v1';
 const BACKUP_VERSION = 1;
@@ -18,7 +18,10 @@ function normalizeAlarm(raw) {
   if (!raw || typeof raw !== 'object' || !['none','gong','bell','digital','alert'].includes(raw.tone) ||
       !['once','three','until_ack'].includes(raw.repeat) || typeof raw.visual !== 'boolean' || typeof raw.system !== 'boolean')
     throw Error('Ungültige Alarmeinstellungen.');
-  return {tone:raw.tone,repeat:raw.repeat,visual:raw.visual,system:raw.system};
+  if (raw.volume !== undefined && (typeof raw.volume !== 'number' || !Number.isFinite(raw.volume) || raw.volume < 0 || raw.volume > 1))
+    throw Error('Lautstärke muss zwischen 0 und 100 % liegen.');
+  return {tone:raw.tone,repeat:raw.repeat,visual:raw.visual,system:raw.system,
+    ...(raw.volume === undefined ? {} : {volume:raw.volume})};
 }
 function normalizeFavorite(raw, existing) {
   const name = String(raw.name||'').trim();

@@ -5,6 +5,10 @@ const PENDING_KEY = 'nexttimer.pending-browser-alarms.v1';
 const TONES = ['none','gong','bell','digital','alert'];
 const REPEATS = ['once','three','until_ack'];
 const BASE = Object.freeze({tone:'bell',repeat:'once',visual:true,system:true,volume:0.6});
+// A repeat is a short audible pattern followed by silence, not one continuous tone.
+const THREE_INTERVAL_MS = 3000;
+const UNTIL_ACK_INTERVAL_MS = 10000;
+const MIN_ALARM_WINDOW_MS = 2000;
 let audioContext;
 let nextAudioTime = 0;
 const active = new Map();
@@ -37,6 +41,8 @@ export function resolveAlarm(timer={}) {
   const global = getDefaults();
   const local = valid(timer.alarm) ? timer.alarm : null;
   const resolved = {...global,...local};
+  // Old profiles without a volume continue to inherit this browser's level.
+  resolved.volume = local && Number.isFinite(local.volume) ? clamp(local.volume) : global.volume;
   // Preserve the intent of pre-profile favorites, which had two booleans.
   if (!local) {
     if (timer.sound === false) resolved.tone='none';
@@ -67,6 +73,14 @@ const patterns = {
   digital:[['square',784,0,.11,.085],['square',784,.20,.11,.085],['square',1046,.40,.20,.085]],
   alert:[['triangle',740,0,.14,.17],['triangle',988,.22,.14,.17],['triangle',740,.44,.14,.17],['triangle',988,.66,.20,.17]]
 };
+// The visual alert and the audible repeat schedule use the same duration.
+export function alarmWindowMs(alarm) {
+  if (alarm.repeat === 'until_ack') return Infinity;
+  const pattern = patterns[alarm.tone];
+  const soundMs = pattern ? Math.max(...pattern.map(([, , offset, duration]) => offset + duration)) * 1000 : 0;
+  const lastCycleMs = Math.max(MIN_ALARM_WINDOW_MS, soundMs);
+  return (alarm.repeat === 'three' ? 2 * THREE_INTERVAL_MS : 0) + lastCycleMs;
+}
 export function playFinishSound(tone='bell',volume=0.6,alarmKey=null) {
   if (tone==='none' || !patterns[tone] || volume<=0) return;
   unlockAudio();
@@ -120,7 +134,7 @@ function render() {
   document.getElementById('alarm-ack-all').hidden=!pending.some(a=>a.alarm.repeat==='until_ack');
   list.innerHTML=pending.map(a=>{
     const needsAck=a.alarm.repeat==='until_ack';
-    return `<div class="alarm-item ${a.alarm.visual?'alarm-visible':''} ${a.alarm.visual&&Date.now()-a.started<5000?'alarm-pulsing':''}" data-alarm-key="${escapeHTML(a.key)}">
+    return `<div class="alarm-item ${a.alarm.visual?'alarm-visible':''} ${a.alarm.visual?'alarm-pulsing':''}" data-alarm-key="${escapeHTML(a.key)}">
       <span class="alarm-item-name">${escapeHTML(a.name)}</span><span class="alarm-item-state">Abgelaufen</span>
       ${needsAck?`<button type="button" data-ack="${escapeHTML(a.key)}">Bestätigen</button>`:''}
     </div>`;
@@ -138,20 +152,21 @@ export function acknowledgeAll() {
 function soundTick() {
   const now=Date.now();let changed=false;
   for(const [key,a] of active) {
-    if(a.alarm.repeat!=='until_ack'&&now>a.started+14000){active.delete(key);changed=true;continue;}
+    if(now>=a.started+alarmWindowMs(a.alarm)){silenceAlarm(key);active.delete(key);changed=true;continue;}
     if(a.nextSound!==null&&now>=a.nextSound){
       playFinishSound(a.alarm.tone,a.alarm.volume,a.key);
       a.played++;
-      a.nextSound=a.alarm.repeat==='once'||(a.alarm.repeat==='three'&&a.played>=3)?null:now+(a.alarm.repeat==='three'?3000:10000);
+      a.nextSound=a.alarm.repeat==='once'||(a.alarm.repeat==='three'&&a.played>=3)?null:now+(a.alarm.repeat==='three'?THREE_INTERVAL_MS:UNTIL_ACK_INTERVAL_MS);
     }
-    if(a.alarm.visual&& !a.pulseDone && now-a.started>=5000) {a.pulseDone=true;changed=true;}
   }
   if(changed){persistPending();render();}
 }
 async function showSystemNotification(timer,alarm) {
   if (!alarm.system || permission()!=='granted')return;
   const title=`${timer.name} – Fertig!`;
-  const options={body:'Der Countdown ist abgelaufen.',tag:`nexttimer-${keyFor(timer)}`,icon:new URL('../icons/icon-192.png',import.meta.url).href};
+  // The browser's notification chime is not the selected NextTimer tone.
+  // Suppress it so users hear only the configured in-app alarm sound.
+  const options={body:'Der Countdown ist abgelaufen.',tag:`nexttimer-${keyFor(timer)}`,icon:new URL('../icons/icon-192.png',import.meta.url).href,silent:true};
   try {
     if('serviceWorker' in navigator){
       const reg=await navigator.serviceWorker.getRegistration();
@@ -164,9 +179,9 @@ export function alertFinished(timer) {
   const key=keyFor(timer);
   if(!markSeen(key))return;
   const alarm=resolveAlarm(timer),now=Date.now();
-  if(alarm.visual||alarm.repeat==='until_ack'||alarm.tone!=='none'){
+  if(alarm.visual||alarm.repeat==='until_ack'||(alarm.tone!=='none' && alarm.volume>0)){
     active.set(key,{key,name:timer.name||'Timer',alarm,started:now,played:0,
-      nextSound:alarm.tone==='none'?null:now,pulseDone:false});
+      nextSound:alarm.tone==='none'||alarm.volume===0?null:now});
     persistPending();render();soundTick();
   }
   void showSystemNotification(timer,alarm);
@@ -177,7 +192,7 @@ export function initBrowserAlarms(callback=()=>{}) {
     const restored=JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
     for(const a of Array.isArray(restored)?restored:[]){
       if(typeof a.key==='string'&&typeof a.name==='string'&&valid(a.alarm)&&a.alarm.repeat==='until_ack'&&Date.now()-a.started<86400000){
-        active.set(a.key,{...a,alarm:{...a.alarm,volume:Number.isFinite(a.alarm.volume)?clamp(a.alarm.volume):BASE.volume},played:0,nextSound:Date.now()+1000,pulseDone:true});
+        active.set(a.key,{...a,alarm:{...a.alarm,volume:Number.isFinite(a.alarm.volume)?clamp(a.alarm.volume):BASE.volume},played:0,nextSound:Date.now()+1000});
       }
     }
   }catch{}

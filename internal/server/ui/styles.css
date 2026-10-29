@@ -124,3 +124,12 @@ select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .alarm-item.alarm-pulsing{animation:alarm-pulse 1.25s ease-in-out infinite}
 @media(max-width:480px){.alarm-fields{grid-template-columns:1fr}.alarm-settings-body{padding:0 16px 16px}.alarm-item{flex-wrap:wrap}.alarm-item button{margin-left:auto}}
 @media(prefers-reduced-motion:reduce){.alarm-item.alarm-pulsing{animation:none;border-color:#ff9da4}}
+
+/* Quick group choices in both favorite forms. Typed group names remain supported. */
+.group-quick-picks{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+.group-quick-picks[hidden]{display:none}
+.group-quick-button{font-size:.82rem;min-height:34px;padding:5px 11px;border-radius:18px;border:1px solid var(--stroke);background:transparent;color:var(--muted);cursor:pointer}
+.group-quick-button:hover{color:var(--fg);border-color:#7899ae}
+.group-quick-button[aria-pressed="true"]{color:var(--fg);background:#2b4a58;border-color:#6f9ab1}
+.group-quick-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.edit-group-field{min-width:0}

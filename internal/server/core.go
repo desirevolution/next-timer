@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,6 +44,9 @@ func enabled(flag *bool) bool { return flag == nil || *flag }
 func validateBrowserAlarm(a *protocol.BrowserAlarm) error {
 	if a == nil {
 		return nil
+	}
+	if a.Volume != nil && (math.IsNaN(*a.Volume) || math.IsInf(*a.Volume, 0) || *a.Volume < 0 || *a.Volume > 1) {
+		return errors.New("Ungültige Lautstärke (0–1)")
 	}
 	switch a.Tone {
 	case "none", "gong", "bell", "digital", "alert":
