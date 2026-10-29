@@ -37,6 +37,7 @@ jobs:
         run: |
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-standalone-store.mjs
+          node --experimental-default-type=module scripts/test-browser-alarms.mjs
           python3 scripts/build-static.py --output dist/static --version ci
           test -f dist/static/pwa-repair.html
 

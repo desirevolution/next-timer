@@ -33,6 +33,7 @@ jobs:
         run: |
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-standalone-store.mjs
+          node --experimental-default-type=module scripts/test-browser-alarms.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static files
