@@ -29,14 +29,33 @@ type Timer struct {
 	FinishedAt time.Time
 	Sound      bool
 	Notify     bool
+	Alarm      *protocol.BrowserAlarm
 }
 
 type TimerOptions struct {
 	Sound  bool
 	Notify bool
+	Alarm  *protocol.BrowserAlarm
 }
 
 func enabled(flag *bool) bool { return flag == nil || *flag }
+
+func validateBrowserAlarm(a *protocol.BrowserAlarm) error {
+	if a == nil {
+		return nil
+	}
+	switch a.Tone {
+	case "none", "gong", "bell", "digital", "alert":
+	default:
+		return errors.New("Ungültiger Alarmton")
+	}
+	switch a.Repeat {
+	case "once", "three", "until_ack":
+	default:
+		return errors.New("Ungültige Alarmwiederholung")
+	}
+	return nil
+}
 
 // The empty group is the implicit default group; other names are case-insensitively unique.
 func cleanGroup(group string) (string, error) {
@@ -172,6 +191,9 @@ func NewService(path string, ttl time.Duration) (*Service, error) {
 		if t.ID == "" || strings.TrimSpace(t.Name) == "" {
 			return nil, errors.New("ungültige Vorlagen-Datei")
 		}
+		if err := validateBrowserAlarm(t.Alarm); err != nil {
+			return nil, fmt.Errorf("Vorlage %s: %w", t.Name, err)
+		}
 		if _, err := parseDuration(t.Duration); err != nil {
 			return nil, fmt.Errorf("ungültige Vorlage %s: %w", t.Name, err)
 		}
@@ -200,7 +222,7 @@ func (t *Timer) view(now time.Time) TimerView {
 	if t.Status == "running" {
 		v.DeadlineMS = t.Deadline.UnixMilli()
 	}
-	v.Sound, v.Notify = t.Sound, t.Notify
+	v.Sound, v.Notify, v.Alarm = t.Sound, t.Notify, t.Alarm
 	if !t.FinishedAt.IsZero() {
 		v.FinishedAtMS = t.FinishedAt.UnixMilli()
 	}
@@ -298,7 +320,7 @@ func (s *Service) StartConfigured(name string, duration time.Duration, options T
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	t := &Timer{ID: id("t"), Name: strings.TrimSpace(name), Duration: duration, Deadline: now.Add(duration), Remaining: duration, Status: "running", CreatedAt: now, Sound: options.Sound, Notify: options.Notify}
+	t := &Timer{ID: id("t"), Name: strings.TrimSpace(name), Duration: duration, Deadline: now.Add(duration), Remaining: duration, Status: "running", CreatedAt: now, Sound: options.Sound, Notify: options.Notify, Alarm: options.Alarm}
 	s.timers[t.ID] = t
 	s.publishLocked("started", t, now)
 	v := t.view(now)
@@ -339,7 +361,7 @@ func (s *Service) StartTemplate(templateID string) (*TimerView, error) {
 		return nil, errors.New("Dieser Favorit läuft nur im Browser und kann nicht über den Server oder die CLI gestartet werden")
 	}
 	d, _ := parseDuration(selected.Duration)
-	return s.StartConfigured(selected.Name, d, TimerOptions{Sound: enabled(selected.Sound), Notify: enabled(selected.Notify)}), nil
+	return s.StartConfigured(selected.Name, d, TimerOptions{Sound: enabled(selected.Sound), Notify: enabled(selected.Notify), Alarm: selected.Alarm}), nil
 }
 func (s *Service) Control(timerID, action string, delta time.Duration) (*TimerView, error) {
 	s.mu.Lock()
@@ -465,6 +487,9 @@ func (s *Service) AddTemplate(name, duration string) (Template, error) {
 	return s.AddTemplateConfigured(Template{Name: name, Duration: duration})
 }
 func (s *Service) AddTemplateConfigured(opts Template) (Template, error) {
+	if err := validateBrowserAlarm(opts.Alarm); err != nil {
+		return Template{}, err
+	}
 	name, duration := opts.Name, opts.Duration
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -493,7 +518,7 @@ func (s *Service) AddTemplateConfigured(opts Template) (Template, error) {
 			order = s.newGroupOrderLocked()
 		}
 	}
-	item := Template{ID: id("f"), Name: name, Duration: d.String(), Group: group, GroupOrder: order, BrowserOnly: opts.BrowserOnly, Sound: opts.Sound, Notify: opts.Notify}
+	item := Template{ID: id("f"), Name: name, Duration: d.String(), Group: group, GroupOrder: order, BrowserOnly: opts.BrowserOnly, Sound: opts.Sound, Notify: opts.Notify, Alarm: opts.Alarm}
 	list := append(append([]Template{}, s.templates...), item)
 	orderGroups(list)
 	if err = s.saveTemplatesLocked(list); err != nil {
@@ -585,6 +610,9 @@ func (s *Service) UpdateTemplate(id, name, duration string) (Template, error) {
 	return s.UpdateTemplateConfigured(id, Template{Name: name, Duration: duration})
 }
 func (s *Service) UpdateTemplateConfigured(id string, opts Template) (Template, error) {
+	if err := validateBrowserAlarm(opts.Alarm); err != nil {
+		return Template{}, err
+	}
 	name, duration := opts.Name, opts.Duration
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -633,6 +661,7 @@ func (s *Service) UpdateTemplateConfigured(id string, opts Template) (Template, 
 	list[index].BrowserOnly = opts.BrowserOnly
 	list[index].Sound = opts.Sound
 	list[index].Notify = opts.Notify
+	list[index].Alarm = opts.Alarm
 	orderGroups(list)
 	if err := s.saveTemplatesLocked(list); err != nil {
 		return Template{}, err

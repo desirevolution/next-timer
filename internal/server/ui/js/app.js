@@ -1,7 +1,7 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=24';
-import {createStandaloneAPI} from './standalone-store.js?v=24';
-import {LocalTimers} from './local-timers.js?v=24';
-import {alertFinished, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=24';
+import {enableFavoriteSorting} from './favorite-sort.js?v=25';
+import {createStandaloneAPI} from './standalone-store.js?v=25';
+import {LocalTimers} from './local-timers.js?v=25';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=25';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -20,7 +20,7 @@ const durationLabel = raw => {
 const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nexttimer.templates-cache.v1') || '[]');} catch {return [];}})();
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
 let current = {...serverState}, skew = 0, sorting = false, editID = null, renameGroup = null, localTimers;
-let bannerTimer;
+
 let renderedFavKey = '', renderedTimerKey = '', renderedFocusID = '', savingOrder = false;
 const remaining = t => t.status==='running'?Math.max(0,t.deadline_ms-(Date.now()+(t.local?0:skew))):t.remaining_ms;
 const fraction = t => t.duration_ms>0?Math.max(0,Math.min(1,1-remaining(t)/t.duration_ms)):0;
@@ -103,10 +103,11 @@ function drawFavorites(force=false){
   $('sort-info').hidden=!sorting;
   $('sort-toggle').textContent=sorting?'✓ Fertig':'✎ Favoriten bearbeiten';
   $('sort-toggle').setAttribute('aria-pressed',String(sorting));
-  $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'Ein Klick startet den Timer.';
+  $('fav-hint').hidden=!sorting;
+  $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'';
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
-    ${headings?`<div class="favorite-group-heading"><h3>${esc(g.name||'Standard')}</h3>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
+    ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
     <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Öffne „Neuen Timer erstellen“, um einen anzulegen.</p>';
   if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
     const cards=[...group.querySelectorAll('.fav-card')];
@@ -164,12 +165,6 @@ async function moveGroup(name, delta) {
   catch(e){sortStatus(e.message,true);await reload().catch(()=>{});}
   finally {savingOrder=false;}
 }
-function showFinished(timer) {
-  $('finished-label').textContent=`„${timer.name}“ ist fertig.`;
-  $('finished-banner').hidden=false;
-  clearTimeout(bannerTimer);
-  bannerTimer=window.setTimeout(()=>{$('finished-banner').hidden=true;},20000);
-}
 async function timerControl(id, action, deltaText) {
   if(id.startsWith('local-')) {
     let delta=0;
@@ -180,15 +175,56 @@ async function timerControl(id, action, deltaText) {
   if(action==='adjust') return api('/timers/'+encodeURIComponent(id)+'/adjust','POST',{delta:deltaText||'+1m'});
   return api('/timers/'+encodeURIComponent(id)+'/'+action,'POST');
 }
-const formOptions = prefix => ({
-  browser_only:STANDALONE||$(prefix+'browser-only').checked,
-  notify:$(prefix+'notify').checked,
-  sound:$(prefix+'sound').checked
-});
+function profileForm(prefix,alarm=null) {
+  const defaults=getDefaults();
+  const custom=alarm!==null && alarm!==undefined;
+  $(prefix+'alarm-custom').checked=custom;
+  const value={...defaults,...alarm};
+  $(prefix+'tone').value=value.tone;
+  $(prefix+'repeat').value=value.repeat;
+  $(prefix+'visual').checked=value.visual;
+  $(prefix+'system').checked=value.system;
+  $(prefix+'alarm-fields').hidden=!custom;
+}
+function profileValues(prefix) {
+  if(!$(prefix+'alarm-custom').checked)return null;
+  return {tone:$(prefix+'tone').value,repeat:$(prefix+'repeat').value,
+    visual:$(prefix+'visual').checked,system:$(prefix+'system').checked};
+}
+function formOptions(prefix) {
+  return {browser_only:STANDALONE||$(prefix+'browser-only').checked,alarm:profileValues(prefix)};
+}
+const globalControls=['tone','repeat','visual','system','volume'];
+function showGlobalDefaults(){
+  const v=getDefaults();
+  for(const key of globalControls){const el=$('global-'+key);if(key==='visual'||key==='system')el.checked=v[key];else el.value=key==='volume'?Math.round(v.volume*100):v[key];}
+  $('global-volume-label').value=`${Math.round(v.volume*100)} %`;
+}
+function saveGlobalControls(){
+  const v={tone:$('global-tone').value,repeat:$('global-repeat').value,
+    visual:$('global-visual').checked,system:$('global-system').checked,volume:Number($('global-volume').value)/100};
+  try{saveDefaults(v);$('global-volume-label').value=`${Math.round(v.volume*100)} %`;}
+  catch(e){message(e.message,true);}
+}
+for(const key of globalControls) $('global-'+key).addEventListener('input',saveGlobalControls);
+for(const prefix of ['timer-','edit-']){
+  $(prefix+'alarm-custom').addEventListener('change',()=>{
+    if($(prefix+'alarm-custom').checked)profileForm(prefix,{
+      tone:$(prefix+'tone').value,repeat:$(prefix+'repeat').value,
+      visual:$(prefix+'visual').checked,system:$(prefix+'system').checked
+    });
+    else profileForm(prefix);
+  });
+}
+document.querySelectorAll('[data-preview]').forEach(btn=>btn.addEventListener('click',()=>{
+  const prefix=btn.dataset.preview+'-';
+  playFinishSound($(prefix+'tone').value,getDefaults().volume);
+}));
+showGlobalDefaults();profileForm('timer-');profileForm('edit-');
 function startTimer(duration,name,templateId,options={}){
   const fav=templateId?(current.templates||[]).find(f=>f.id===templateId):null;
   if(templateId&&!fav) throw Error('Favorit nicht gefunden.');
-  const config=fav?{browser_only:STANDALONE||!!fav.browser_only,notify:fav.notify!==false,sound:fav.sound!==false}:{...options,browser_only:STANDALONE||!!options.browser_only};
+  const config=fav?{browser_only:STANDALONE||!!fav.browser_only,notify:fav.notify!==false,sound:fav.sound!==false,alarm:fav.alarm??null}:{...options,browser_only:STANDALONE||!!options.browser_only};
   if(config.browser_only) return localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config);
   return api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
 }
@@ -196,7 +232,7 @@ $('new-form').addEventListener('submit',e=>{e.preventDefault();perform(()=>start
 $('save-favorite').addEventListener('click',async()=>{
   const name=$('name').value.trim()||'Timer';
   const ok=await perform(()=>api('/templates','POST',{duration:$('duration').value,name,group:$('timer-group').value.trim(),...formOptions('timer-')}));
-  if(ok)$('new-section').open=false;
+  if(ok){$('new-section').open=false;$('new-form').reset();$('duration').value='10m';profileForm('timer-');}
 });
 function openFavoriteEditor(fav) {
   editID=fav.id;
@@ -204,8 +240,12 @@ function openFavoriteEditor(fav) {
   $('edit-duration').value=fav.duration;
   $('edit-group').value=fav.group||'';
   $('edit-browser-only').checked=STANDALONE||!!fav.browser_only;
-  $('edit-notify').checked=fav.notify!==false;
-  $('edit-sound').checked=fav.sound!==false;
+  const defaults=getDefaults();
+  const legacy=(!fav.alarm&&(fav.sound===false||fav.notify===false))?{
+    tone:fav.sound===false?'none':defaults.tone,repeat:defaults.repeat,
+    visual:fav.notify===false?false:defaults.visual,system:fav.notify===false?false:defaults.system
+  }:null;
+  profileForm('edit-',fav.alarm??legacy);
   $('edit-error').textContent='';
   $('favorite-dialog').showModal();
   $('edit-name').focus();
@@ -220,7 +260,7 @@ $('edit-form').addEventListener('submit',async e=>{
     await api('/templates/'+encodeURIComponent(editID),'PUT',{
       name:$('edit-name').value.trim(),duration:$('edit-duration').value.trim(),
       group:$('edit-group').value.trim(),browser_only:STANDALONE||$('edit-browser-only').checked,
-      notify:$('edit-notify').checked,sound:$('edit-sound').checked
+      alarm:profileValues('edit-')
     });
     $('favorite-dialog').close();
     await reload();
@@ -270,11 +310,11 @@ document.addEventListener('click',e=>{
 });
 const events=STANDALONE?null:new EventSource('/api/events');
 events?.addEventListener('state',e=>{
-  try{const event=JSON.parse(e.data);apply(event.state);if(event.type==='finished'&&event.timer)alertFinished(event.timer,showFinished);$('connect').textContent='Verbunden';$('live').classList.remove('off');}
+  try{const event=JSON.parse(e.data);apply(event.state);if(event.type==='finished'&&event.timer)alertFinished(event.timer);$('connect').textContent='Verbunden';$('live').classList.remove('off');}
   catch(error){console.error(error);}
 });
 events?.addEventListener('error',()=>{$('connect').textContent='Verbinde erneut …';$('live').classList.add('off');});
-$('finished-close').addEventListener('click',()=>{$('finished-banner').hidden=true;clearTimeout(bannerTimer);});
+initBrowserAlarms();
 document.addEventListener('pointerdown', unlockAudio, {passive:true});
 function updateNotificationButton(){
   const p=permission();
@@ -288,7 +328,7 @@ $('notifications-enable').addEventListener('click',async()=>{
   catch(error){message(error.message,true);}
 });
 updateNotificationButton();
-localTimers=new LocalTimers(combine,t=>alertFinished(t,showFinished));
+localTimers=new LocalTimers(combine,t=>alertFinished(t));
 if(STANDALONE){
   standaloneStore=createStandaloneAPI(()=>reload().catch(console.warn));
   $('connect').textContent='Nur Browser';

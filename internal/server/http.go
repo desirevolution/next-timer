@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/desirevolution/next-timer/internal/protocol"
 	"io"
 	"io/fs"
 	"net/http"
@@ -130,14 +131,19 @@ document.querySelector('#repair').addEventListener('click',async()=>{
 	})
 	mux.HandleFunc("POST /api/timers", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Name        string `json:"name"`
-			Duration    string `json:"duration"`
-			TemplateID  string `json:"template_id"`
-			Sound       *bool  `json:"sound"`
-			Notify      *bool  `json:"notify"`
-			BrowserOnly bool   `json:"browser_only"`
+			Name        string                 `json:"name"`
+			Duration    string                 `json:"duration"`
+			TemplateID  string                 `json:"template_id"`
+			Sound       *bool                  `json:"sound"`
+			Notify      *bool                  `json:"notify"`
+			BrowserOnly bool                   `json:"browser_only"`
+			Alarm       *protocol.BrowserAlarm `json:"alarm"`
 		}
 		if err := decodeBody(r, &req); err != nil {
+			apiError(w, 400, err)
+			return
+		}
+		if err := validateBrowserAlarm(req.Alarm); err != nil {
 			apiError(w, 400, err)
 			return
 		}
@@ -156,7 +162,7 @@ document.querySelector('#repair').addEventListener('click',async()=>{
 				err = errors.New("Name zu lang (maximal 80 Zeichen)")
 			}
 			if err == nil {
-				timer = api.Service.StartConfigured(req.Name, duration, TimerOptions{Sound: enabled(req.Sound), Notify: enabled(req.Notify)})
+				timer = api.Service.StartConfigured(req.Name, duration, TimerOptions{Sound: enabled(req.Sound), Notify: enabled(req.Notify), Alarm: req.Alarm})
 			}
 		}
 		if err != nil {

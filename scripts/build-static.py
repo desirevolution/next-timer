@@ -31,7 +31,13 @@ def build(destination:Path,version:str)->None:
         pattern=r'<label class="check-option"><input id="'+element_id+r'"[^>]*>.*?</label>'
         page,count=re.subn(pattern,f'<input id="{element_id}" type="checkbox" checked hidden>',page,count=1,flags=re.S)
         if count!=1:raise ValueError(f'Cannot locate {element_id} option')
-    page=page.replace('Favorit starten. Zeit im Blick.','Favoriten und Timer – ohne Server.')
+    # The server/local checkbox is not meaningful in static mode. Remove the
+    # otherwise empty fieldsets but preserve their hidden inputs for form code.
+    for element_id in ('timer-browser-only','edit-browser-only'):
+        pattern = (r'<fieldset class="timer-options">\s*<legend>.*?</legend>\s*'
+                   r'(<input id="'+element_id+r'"[^>]*>)\s*</fieldset>')
+        page, count = re.subn(pattern, r'\1', page, count=1, flags=re.S)
+        if count != 1: raise ValueError(f'Cannot remove standalone-only empty options fieldset: {element_id}')
     page=page.replace('Verbinde …','Nur Browser')
     # The local backup is required because clearing browser data erases all
     # favorites and timers. It is deliberately standalone-only.
@@ -52,9 +58,9 @@ def build(destination:Path,version:str)->None:
     # Tag all asset URLs with the build revision so browser/CDN caches cannot
     # mix JS from an older deployment with a new HTML shell.
     for asset in [dest/'index.html',dest/'sw.js',dest/'pwa-update.js',*(dest/'js').glob('*.js')]:
-        asset.write_text(asset.read_text().replace('?v=24',f'?v={version}'))
+        asset.write_text(asset.read_text().replace('?v=25',f'?v={version}'))
     worker=dest/'sw.js'
-    text=worker.read_text().replace("const VERSION = 'v24';",f"const VERSION = 'static-{version}';")
+    text=worker.read_text().replace("const VERSION = 'v25';",f"const VERSION = 'static-{version}';")
     worker.write_text(text)
     # A repair page outside the SW fetch handler, scoped to this installation.
     (dest/'pwa-repair.html').write_text('''<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

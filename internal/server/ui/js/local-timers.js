@@ -46,7 +46,7 @@ export class LocalTimers {
     const ms = parseTimerDuration(duration);
     const now = Date.now();
     const t = {id:'local-'+(crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`),name:(name || '').trim() || 'Timer',duration_ms:ms,
-      remaining_ms:ms,deadline_ms:now+ms,created_at_ms:now,finished_at_ms:0,status:'running',local:true,sound:options.sound!==false,notify:options.notify!==false};
+      remaining_ms:ms,deadline_ms:now+ms,created_at_ms:now,finished_at_ms:0,status:'running',local:true,sound:options.sound!==false,notify:options.notify!==false,alarm:options.alarm??null};
     this.timers.push(t);
     this.save();
     return t;

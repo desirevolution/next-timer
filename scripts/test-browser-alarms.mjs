@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+const storage=new Map();
+let now=100000;
+Date.now=()=>now;
+const periodic=[];
+const elements=new Map();
+const el=id=>{
+  if(!elements.has(id))elements.set(id,{hidden:false,textContent:'',innerHTML:'',addEventListener(){},dataset:{}});
+  return elements.get(id);
+};
+globalThis.localStorage={getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v))};
+globalThis.window={isSecureContext:false,setInterval:fn=>periodic.push(fn),addEventListener(){}};
+globalThis.document={getElementById:el,addEventListener(){}};
+const {getDefaults,saveDefaults,resolveAlarm,initBrowserAlarms,alertFinished,acknowledgeAlarm,acknowledgeAll}=
+  await import('../internal/server/ui/js/alerts.js');
+assert.deepEqual(getDefaults(),{tone:'bell',repeat:'once',visual:true,system:true,volume:.6});
+saveDefaults({tone:'gong',repeat:'three',visual:false,system:true,volume:.35});
+assert.equal(resolveAlarm({}).tone,'gong');
+assert.equal(resolveAlarm({sound:false}).tone,'none');
+assert.equal(resolveAlarm({notify:false}).visual,false);
+assert.equal(resolveAlarm({alarm:{tone:'digital',repeat:'until_ack',visual:true,system:false}}).tone,'digital');
+const changes=[];
+initBrowserAlarms(pending=>changes.push(pending.length));
+const timer=(id,alarm)=>({id,local:true,created_at_ms:123,name:'Timer '+id,alarm});
+const persistent={tone:'none',repeat:'until_ack',visual:false,system:false};
+alertFinished(timer('a',persistent));
+assert.equal(el('alarm-banner').hidden,false,'until_ack must remain visible even when visual alerts disabled');
+assert.match(el('alarm-list').innerHTML,/Bestätigen/);
+assert.equal(JSON.parse(storage.get('nexttimer.pending-browser-alarms.v1')).length,1);
+alertFinished(timer('b',persistent));
+assert.match(el('alarm-count').textContent,/2/);
+acknowledgeAlarm('local:a:123');
+assert.equal(JSON.parse(storage.get('nexttimer.pending-browser-alarms.v1')).length,1);
+acknowledgeAll();
+assert.equal(el('alarm-banner').hidden,true);
+assert.equal(JSON.parse(storage.get('nexttimer.pending-browser-alarms.v1')).length,0);
+// Non-acknowledgement modes expire automatically.
+alertFinished(timer('c',{tone:'none',repeat:'once',visual:true,system:false}));
+assert.equal(el('alarm-banner').hidden,false);
+now+=15000;
+periodic.forEach(fn=>fn());
+assert.equal(el('alarm-banner').hidden,true);
+console.log('Browser alarms: defaults, overrides, silent acknowledgement, multiple timers, automatic expiry OK');

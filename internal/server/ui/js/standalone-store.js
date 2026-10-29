@@ -1,6 +1,6 @@
 // Browser-only favorite storage. The public API mirrors the small set of
 // template endpoints used by the shared NextTimer frontend; no HTTP is sent.
-import {parseTimerDuration} from './local-timers.js?v=24';
+import {parseTimerDuration} from './local-timers.js?v=25';
 
 const KEY = 'nexttimer.standalone.templates.v1';
 const BACKUP_VERSION = 1;
@@ -13,6 +13,13 @@ function normalizeGroup(input) {
   if ([...group].length > 48 || /[\x00-\x1f\x7f]/.test(group)) throw Error('Ungültiger Gruppenname (maximal 48 Zeichen).');
   return group;
 }
+function normalizeAlarm(raw) {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== 'object' || !['none','gong','bell','digital','alert'].includes(raw.tone) ||
+      !['once','three','until_ack'].includes(raw.repeat) || typeof raw.visual !== 'boolean' || typeof raw.system !== 'boolean')
+    throw Error('Ungültige Alarmeinstellungen.');
+  return {tone:raw.tone,repeat:raw.repeat,visual:raw.visual,system:raw.system};
+}
 function normalizeFavorite(raw, existing) {
   const name = String(raw.name||'').trim();
   if (!name || [...name].length > 80) throw Error('Favoritenname muss 1–80 Zeichen haben.');
@@ -20,7 +27,7 @@ function normalizeFavorite(raw, existing) {
   const group = normalizeGroup(raw.group);
   return {id:existing?.id || id(), name, duration:`${ms}ms`, group,
     group_order:existing?.group_order||0, browser_only:true,
-    sound:raw.sound!==false,notify:raw.notify!==false};
+    sound:raw.sound!==false,notify:raw.notify!==false,alarm:normalizeAlarm(raw.alarm)};
 }
 function orderItems(items) {
   items.sort((a,b)=>{

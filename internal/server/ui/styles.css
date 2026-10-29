@@ -84,3 +84,43 @@
 .standalone-backup .backup-import {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid var(--stroke);border-radius:9px;cursor:pointer;color:inherit;background:var(--surface, #1e2c3c)}
 .standalone-backup .backup-import:hover {filter:brightness(1.12)}
 @media(max-width:480px){.standalone-backup > p{padding:0 16px}.standalone-backup > .form-actions{padding:0 16px 16px}.standalone-backup .backup-import{width:100%}}
+
+/* Favorite groups use section rules rather than nested panels. */
+.favorites{gap:30px}
+.favorite-group-heading{gap:11px;margin-bottom:16px;min-width:0}
+.group-label{display:flex;align-items:center;gap:9px;min-width:0;padding-left:12px;border-left:3px solid #6f9ab1}
+.group-label h3{color:var(--fg);font-size:.91rem;font-weight:650;overflow-wrap:anywhere}
+.group-count{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.group-rule{height:1px;min-width:16px;flex:1 1 auto;background:var(--stroke)}
+.group-actions{flex:0 0 auto}
+@media(max-width:480px){.favorite-group-heading{flex-wrap:wrap;align-items:center}.group-actions{width:100%;justify-content:flex-end}.group-rule{min-width:25px}}
+
+/* Browser alarms and per-favorite overrides. */
+select{font:inherit;border:1px solid var(--stroke);border-radius:10px;color:var(--fg);background:#0b1421;padding:11px;width:100%;min-width:0;min-height:44px}
+select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.alarm-form{border:1px solid var(--stroke);border-radius:12px;padding:10px 14px;margin:0 0 15px;min-width:0}
+.alarm-form legend{font-size:.9rem;color:var(--muted);padding:0 5px}
+.alarm-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 14px;margin:12px 0 4px}
+.alarm-fields .check-option{align-items:center}
+.alarm-fields .check-option input{width:19px;height:19px;margin:0}
+.tone-row{display:flex;gap:7px;align-items:stretch}
+.tone-row .tone-preview{min-width:44px;padding:9px 12px}
+.alarm-settings-body{padding:0 23px 23px}
+.alarm-settings-body>.subtle{margin:0 0 10px}
+.alarm-settings-body .settings-fields{margin-bottom:16px}
+.volume-field input{width:100%;accent-color:var(--accent);cursor:pointer;min-height:26px}
+.volume-field output{font-variant-numeric:tabular-nums;margin-left:8px;color:var(--fg)}
+.alarm-banner{margin:0 0 16px;border:1px solid #a75260;border-radius:14px;background:#301c27;padding:13px 16px}
+.alarm-banner-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.alarm-banner-head strong{font-size:.93rem;color:#ffc4c9}
+.alarm-banner-head button{min-height:38px}
+.alarm-list{display:grid;gap:7px}
+.alarm-item{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:55px;border:1px solid #67434b;border-radius:10px;background:#31232d}
+.alarm-item.alarm-visible{border-color:#db737c}
+.alarm-item-name{font-weight:650;min-width:0;overflow-wrap:anywhere}
+.alarm-item-state{font-size:.82rem;color:#ffb4bb;margin-left:auto}
+.alarm-item button{min-height:38px;white-space:nowrap}
+@keyframes alarm-pulse{0%,100%{border-color:#db737c;box-shadow:0 0 0 0 #f9717920}50%{border-color:#ff9da4;box-shadow:0 0 0 4px #f9717940}}
+.alarm-item.alarm-pulsing{animation:alarm-pulse 1.25s ease-in-out infinite}
+@media(max-width:480px){.alarm-fields{grid-template-columns:1fr}.alarm-settings-body{padding:0 16px 16px}.alarm-item{flex-wrap:wrap}.alarm-item button{margin-left:auto}}
+@media(prefers-reduced-motion:reduce){.alarm-item.alarm-pulsing{animation:none;border-color:#ff9da4}}

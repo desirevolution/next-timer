@@ -7,14 +7,14 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=24">
-  <script type="module" src="js/app.js?v=24"></script>
-  <script defer src="pwa-update.js?v=24"></script>
+  <link rel="stylesheet" href="styles.css?v=25">
+  <script type="module" src="js/app.js?v=25"></script>
+  <script defer src="pwa-update.js?v=25"></script>
 </head>
 <body>
 <main class="shell">
   <header class="app-header">
-    <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><div><h1>NextTimer</h1><p>Favorit starten. Zeit im Blick.</p></div></div>
+    <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><h1>NextTimer</h1></div>
     <div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div>
   </header>
 
@@ -23,7 +23,10 @@
     <span id="notifications-status" class="notification-status" role="status" hidden></span>
   </div>
   <div id="pwa-update-banner" class="pwa-update-banner" role="status" hidden><div><strong>Eine neue Version von NextTimer ist verfügbar.</strong><span>Aktualisieren, wenn du bereit bist. Laufende lokale Timer bleiben gespeichert.</span></div><div class="update-actions"><button type="button" id="pwa-update-later">Später</button><button type="button" id="pwa-update-now" class="primary-button">Aktualisieren</button></div></div>
-  <div id="finished-banner" class="finished-banner" role="alert" hidden><div><strong>⏰ Timer abgelaufen</strong><span id="finished-label"></span></div><button type="button" id="finished-close">Schließen</button></div>
+  <section id="alarm-banner" class="alarm-banner" role="region" aria-label="Abgelaufene Timer" hidden>
+    <div class="alarm-banner-head"><strong>Timer abgelaufen <span id="alarm-count"></span></strong><button type="button" id="alarm-ack-all" hidden>Alle bestätigen</button></div>
+    <div id="alarm-list" class="alarm-list" aria-live="polite"></div>
+  </section>
   <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel">
     <div class="heading"><h2 id="focus-title">Nächster Ablauf</h2><span class="pill" id="head-status">Bereit</span></div>
     <div class="focus-layout">
@@ -45,7 +48,7 @@
 
   <section class="panel fav-panel" aria-labelledby="fav-title">
     <div class="heading fav-heading">
-      <div><h2 id="fav-title">Favoriten <span class="count" id="fav-count">0</span></h2><p class="subtle" id="fav-hint">Ein Klick startet den Timer.</p></div>
+      <div><h2 id="fav-title">Favoriten <span class="count" id="fav-count">0</span></h2><p class="subtle" id="fav-hint" hidden></p></div>
       <button type="button" id="sort-toggle" class="secondary-button" aria-pressed="false">✎ Favoriten bearbeiten</button>
     </div>
     <div class="sort-info" id="sort-info" hidden>Favoriten bearbeiten, löschen oder innerhalb ihrer Gruppe umsortieren. Die Reihenfolge wird automatisch gespeichert.</div>
@@ -63,9 +66,17 @@
       <fieldset class="timer-options">
         <legend>Optionen für diesen Timer</legend>
         <label class="check-option"><input id="timer-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Offline, ohne AWTRIX und CLI</small></span></label>
-        <label class="check-option"><input id="timer-notify" type="checkbox" checked><span><strong>Benachrichtigung</strong><small>In der App und, falls erlaubt, im System</small></span></label>
-        <label class="check-option"><input id="timer-sound" type="checkbox" checked><span><strong>Signalton</strong><small>Deutlicher zweifacher Dreiklang</small></span></label>
       </fieldset>
+      <fieldset class="alarm-form" id="timer-alarm-block">
+      <legend>Browser-Alarm</legend>
+      <label class="check-option"><input type="checkbox" id="timer-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
+      <div class="alarm-fields" id="timer-alarm-fields" hidden>
+        <div><label for="timer-tone">Ton</label><div class="tone-row"><select id="timer-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="timer" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
+        <div><label for="timer-repeat">Wiederholung</label><select id="timer-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+        <label class="check-option"><input type="checkbox" id="timer-visual"><span>Rote Hervorhebung</span></label>
+        <label class="check-option"><input type="checkbox" id="timer-system"><span>Systembenachrichtigung</span></label>
+      </div>
+    </fieldset>
       <div class="favorite-group-field"><label for="timer-group">Gruppe (nur beim Speichern als Favorit)</label><input id="timer-group" list="favorite-group-options" maxlength="48" placeholder="Standard · oder Gruppennamen eingeben" autocomplete="off"><small class="subtle">Vorhandene Gruppe wählen oder einen neuen Namen eingeben. Leer = Standard.</small></div>
       <div class="form-actions">
         <button type="submit" class="primary-button" id="start-btn">▶ Timer starten</button>
@@ -77,6 +88,20 @@
   <details class="panel extra-panel" id="others-section" open>
     <summary><span>Weitere Timer <span class="count" id="timer-count">0</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
     <div id="timers"><p class="empty">Keine weiteren Timer.</p></div>
+  </details>
+  <details class="panel extra-panel" id="alarm-settings">
+    <summary><span>Browser-Alarme</span><span class="chevron" aria-hidden="true">⌄</span></summary>
+    <div class="alarm-settings-body">
+      <p class="subtle">Standardwerte für diesen Browser. Favoriten können eigene Einstellungen haben.</p>
+      <div class="alarm-fields settings-fields">
+        <div><label for="global-tone">Ton</label><div class="tone-row"><select id="global-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="global" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
+        <div><label for="global-repeat">Wiederholung</label><select id="global-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+        <div class="volume-field"><label for="global-volume">Lautstärke <output id="global-volume-label">60 %</output></label><input type="range" id="global-volume" min="0" max="100" step="5" value="60"></div>
+        <label class="check-option"><input type="checkbox" id="global-visual" checked><span>Rote Hervorhebung</span></label>
+        <label class="check-option"><input type="checkbox" id="global-system" checked><span>Systembenachrichtigung</span></label>
+      </div>
+      <p class="subtle">Akustische Signale sind nur bei geöffneter App zuverlässig. Für Systembenachrichtigungen ist eine Browserfreigabe erforderlich.</p>
+    </div>
   </details>
   <p id="message" class="message" role="status" aria-live="polite"></p>
   <datalist id="favorite-group-options"></datalist>
@@ -100,9 +125,17 @@
       <fieldset class="timer-options">
         <legend>Optionen für diesen Favoriten</legend>
         <label class="check-option"><input id="edit-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Startet immer lokal, nicht über AWTRIX oder CLI</small></span></label>
-        <label class="check-option"><input id="edit-notify" type="checkbox"><span><strong>Benachrichtigung</strong><small>In der App und, falls erlaubt, im System</small></span></label>
-        <label class="check-option"><input id="edit-sound" type="checkbox"><span><strong>Signalton</strong><small>Deutlicher zweifacher Dreiklang</small></span></label>
       </fieldset>
+      <fieldset class="alarm-form" id="edit-alarm-block">
+      <legend>Browser-Alarm</legend>
+      <label class="check-option"><input type="checkbox" id="edit-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
+      <div class="alarm-fields" id="edit-alarm-fields" hidden>
+        <div><label for="edit-tone">Ton</label><div class="tone-row"><select id="edit-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="edit" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
+        <div><label for="edit-repeat">Wiederholung</label><select id="edit-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+        <label class="check-option"><input type="checkbox" id="edit-visual"><span>Rote Hervorhebung</span></label>
+        <label class="check-option"><input type="checkbox" id="edit-system"><span>Systembenachrichtigung</span></label>
+      </div>
+    </fieldset>
       <div class="form-actions edit-actions">
         <button type="button" id="edit-cancel">Abbrechen</button>
         <button type="submit" class="primary-button" id="edit-submit">Änderungen speichern</button>

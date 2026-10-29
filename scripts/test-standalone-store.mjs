@@ -7,9 +7,10 @@ const {createStandaloneAPI}=await import('../internal/server/ui/js/standalone-st
 const store=createStandaloneAPI();
 const api=store.api;
 let s=await api('/state');assert.equal(s.templates.length,0);
-const first=await api('/templates','POST',{name:'Pause',duration:'10m',group:'Arbeit',notify:true});
+const first=await api('/templates','POST',{name:'Pause',duration:'10m',group:'Arbeit',notify:true,alarm:{tone:'gong',repeat:'until_ack',visual:true,system:false}});
 const second=await api('/templates','POST',{name:'Pause',duration:'5m',group:'Sport',sound:false});
 assert.equal(first.browser_only,true);
+assert.equal(first.alarm.tone,'gong');
 assert.equal((await api('/state')).groups.join(','),'Arbeit,Sport');
 await assert.rejects(()=>api('/templates','POST',{name:'Pause',duration:'2m',group:'Arbeit'}),/Name/);
 const third=await api('/templates','POST',{name:'Eier',duration:'7m',group:''});

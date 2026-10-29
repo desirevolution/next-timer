@@ -1,29 +1,40 @@
 package protocol
 
 // TimerView is the public, transport-safe view of a countdown timer.
+// BrowserAlarm is optional. Nil means the browser should apply its own defaults.
+// It changes browser signalling only, never AWTRIX or server webhooks.
+type BrowserAlarm struct {
+	Tone   string `json:"tone"`
+	Repeat string `json:"repeat"`
+	Visual bool   `json:"visual"`
+	System bool   `json:"system"`
+}
+
 type TimerView struct {
-	ID           string `json:"id"`
-	Local        bool   `json:"local,omitempty"`
-	Name         string `json:"name"`
-	DurationMS   int64  `json:"duration_ms"`
-	RemainingMS  int64  `json:"remaining_ms"`
-	DeadlineMS   int64  `json:"deadline_ms,omitempty"`
-	Status       string `json:"status"`
-	CreatedAtMS  int64  `json:"created_at_ms"`
-	FinishedAtMS int64  `json:"finished_at_ms,omitempty"`
-	Sound        bool   `json:"sound"`
-	Notify       bool   `json:"notify"`
+	ID           string        `json:"id"`
+	Local        bool          `json:"local,omitempty"`
+	Name         string        `json:"name"`
+	DurationMS   int64         `json:"duration_ms"`
+	RemainingMS  int64         `json:"remaining_ms"`
+	DeadlineMS   int64         `json:"deadline_ms,omitempty"`
+	Status       string        `json:"status"`
+	CreatedAtMS  int64         `json:"created_at_ms"`
+	FinishedAtMS int64         `json:"finished_at_ms,omitempty"`
+	Alarm        *BrowserAlarm `json:"alarm,omitempty"`
+	Sound        bool          `json:"sound"`
+	Notify       bool          `json:"notify"`
 }
 
 type Template struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Duration    string `json:"duration"`
-	Group       string `json:"group,omitempty"`
-	GroupOrder  int    `json:"group_order,omitempty"`
-	BrowserOnly bool   `json:"browser_only,omitempty"`
-	Sound       *bool  `json:"sound,omitempty"`  // nil on legacy templates means enabled
-	Notify      *bool  `json:"notify,omitempty"` // nil on legacy templates means enabled
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Duration    string        `json:"duration"`
+	Group       string        `json:"group,omitempty"`
+	GroupOrder  int           `json:"group_order,omitempty"`
+	BrowserOnly bool          `json:"browser_only,omitempty"`
+	Alarm       *BrowserAlarm `json:"alarm,omitempty"`
+	Sound       *bool         `json:"sound,omitempty"`  // nil on legacy templates means enabled
+	Notify      *bool         `json:"notify,omitempty"` // nil on legacy templates means enabled
 }
 
 type Snapshot struct {
