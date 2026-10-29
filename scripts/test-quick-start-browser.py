@@ -107,7 +107,7 @@ with sync_playwright() as pw:
     page.locator('#quick-input').press('Enter')
     page.wait_for_function('window.quickRequests.length===1')
     assert page.evaluate('window.quickRequests[0]')=={'duration':'3m','name':'Tee','browser_only':False,'alarm':None}
-    assert page.locator('#quick-input').input_value()==''
+    page.wait_for_function("document.querySelector('#quick-input').value===''")
     assert not errors,errors
     print('Quick Timer server mode: POST /api/timers, server defaults, no local-only flag OK')
     browser.close()

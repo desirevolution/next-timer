@@ -149,3 +149,63 @@ select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .quick-error:not(:empty){margin-top:9px}
 .quick-row input[aria-invalid="true"]{border-color:var(--red)}
 @media(max-width:480px){.quick-panel{padding:14px 15px 11px}.quick-row{gap:7px}.quick-row .primary-button{min-width:85px;padding:8px 11px}}
+/* NextTimer: quiet primary workflows, accessible compact dialogs */
+.header-actions{display:flex;align-items:center;gap:12px}
+.header-settings{min-width:44px;min-height:44px;font-size:1.24rem;line-height:1;border-radius:12px;background:transparent}
+.quick-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.quick-title-row h2{margin:0}
+.shortcut-hint{font:600 .75rem/1 system-ui;color:var(--muted);border:1px solid var(--stroke);padding:5px 8px;border-radius:6px;background:#101b28}
+.quick-options{margin:11px 0 0;border-top:1px solid var(--stroke);padding-top:8px}
+.quick-options>summary{cursor:pointer;font-size:.87rem;color:var(--muted);width:max-content;padding:5px 2px}
+.quick-options[open]>summary{color:var(--fg);margin-bottom:11px}
+.quick-options .timer-options,.quick-options .alarm-form{margin:8px 0}
+.fav-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.fav-header-actions button{white-space:nowrap}
+.hero-footer{display:flex;align-items:stretch;gap:9px;margin-top:9px}
+.hero-footer .stop-button{margin-top:0;flex:1 1 auto;width:auto}
+.hero-footer .timer-more{flex:0 0 52px;font-size:1.4rem;line-height:1}
+.edit-dialog{width:min(520px,calc(100vw - 30px));padding:22px;max-height:min(88dvh,850px);overflow:auto;overscroll-behavior:contain}
+.edit-dialog h2{margin:0 0 5px}
+.edit-dialog .dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:17px}
+.edit-dialog .dialog-close{padding:2px 8px;min-width:38px;min-height:38px;font-size:1.45rem;background:transparent;border:0;color:var(--muted)}
+.edit-dialog .dialog-form{display:flex;flex-direction:column;gap:0;min-width:0}
+.edit-dialog .dialog-field{margin-bottom:14px;min-width:0}
+.edit-dialog .dialog-field input{width:100%;min-height:45px}
+.edit-dialog .dialog-main{min-width:0}
+.edit-dialog .dialog-footer{position:relative;display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--stroke);flex-wrap:nowrap}
+.edit-dialog .dialog-footer button{width:auto;min-width:104px;white-space:normal}
+.edit-dialog .dialog-error:empty{display:none}
+#group-form{display:flex;flex-direction:column;gap:0}
+#group-form label{margin:12px 0 6px}
+#group-form>input{flex:0 0 auto;display:block;min-height:46px}
+#group-form .dialog-footer{margin-top:20px;clear:both;flex:0 0 auto}
+.dialog-optional,.settings-section{border-top:1px solid var(--stroke);padding:12px 0;margin-top:5px}
+.dialog-optional>summary,.settings-section>summary{cursor:pointer;color:var(--fg);font-weight:600;font-size:.92rem;padding:5px 2px}
+.optional-hint{float:right;color:var(--muted);font-weight:400;font-size:.8rem;margin-left:10px}
+.dialog-optional[open]>summary{margin-bottom:12px}
+.settings-dialog{width:min(600px,calc(100vw - 30px))}
+.settings-dialog .settings-section p.subtle{margin:11px 0}
+.settings-section h3{font-size:.94rem;margin:0 0 8px}
+.permission-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.settings-link{color:var(--accent)}
+.backup-import{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid var(--stroke);border-radius:10px;color:var(--fg);background:var(--panel2);cursor:pointer;font-size:.92rem;font-weight:550}
+.action-dialog{width:min(400px,calc(100vw - 30px))}
+.menu-action{width:100%;text-align:left;margin-top:14px}
+.confirm-dialog{width:min(420px,calc(100vw - 30px))}
+.confirm-dialog>p{color:var(--muted);margin:12px 0 20px}
+.danger-button{border-color:#a75260;background:#7c2835;color:white}
+.danger-button:hover{background:#9a3442}
+@media (max-width:480px){
+  .app-header{gap:8px}.header-actions{gap:7px}.connection{font-size:.76rem}
+  .header-settings{min-width:42px;min-height:42px}
+  .fav-header-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .fav-header-actions button{width:100%;min-width:0;padding:9px 7px}
+  .edit-dialog{margin:0;position:fixed;inset:0;width:100vw;max-width:100vw;max-height:100dvh;height:100dvh;border-radius:0;padding:18px 16px;overflow:auto}
+  .edit-dialog .dialog-form{min-height:calc(100dvh - 36px)}
+  .edit-dialog .dialog-main{flex:1 1 auto}
+  .edit-dialog .dialog-footer{position:sticky;bottom:-18px;z-index:2;background:#151f2d;padding:14px 0 12px;flex-shrink:0}
+  .edit-dialog .dialog-footer button{min-width:0;flex:1 1 0}
+  .optional-hint{float:none;display:block;margin:3px 0 0}
+  .settings-dialog .dialog-footer{position:sticky;bottom:-18px;background:#151f2d}
+  .shortcut-hint{display:none}
+}

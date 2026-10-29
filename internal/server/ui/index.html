@@ -7,21 +7,17 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=29">
-  <script type="module" src="js/app.js?v=29"></script>
-  <script defer src="pwa-update.js?v=29"></script>
+  <link rel="stylesheet" href="styles.css?v=30">
+  <script type="module" src="js/app.js?v=30"></script>
+  <script defer src="pwa-update.js?v=30"></script>
 </head>
 <body>
 <main class="shell">
   <header class="app-header">
     <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><h1>NextTimer</h1></div>
-    <div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div>
+    <div class="header-actions"><div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div><button type="button" id="open-settings" class="header-settings" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button></div>
   </header>
 
-  <div class="utility-bar" aria-label="Timer-Einstellungen">
-    <button type="button" id="notifications-enable" class="secondary-button">Benachrichtigungen aktivieren</button>
-    <span id="notifications-status" class="notification-status" role="status" hidden></span>
-  </div>
   <div id="pwa-update-banner" class="pwa-update-banner" role="status" hidden><div><strong>Eine neue Version von NextTimer ist verfügbar.</strong><span>Aktualisieren, wenn du bereit bist. Laufende lokale Timer bleiben gespeichert.</span></div><div class="update-actions"><button type="button" id="pwa-update-later">Später</button><button type="button" id="pwa-update-now" class="primary-button">Aktualisieren</button></div></div>
   <section id="alarm-banner" class="alarm-banner" role="region" aria-label="Abgelaufene Timer" hidden>
     <div class="alarm-banner-head"><strong>Timer abgelaufen <span id="alarm-count"></span></strong><button type="button" id="alarm-ack-all" hidden>Alle bestätigen</button></div>
@@ -29,7 +25,7 @@
   </section>
   <section class="panel quick-panel" aria-labelledby="quick-title">
     <form id="quick-form" novalidate>
-      <h2 id="quick-title">Neuer Timer</h2>
+      <div class="quick-title-row"><h2 id="quick-title">Neuer Timer</h2><kbd class="shortcut-hint" aria-label="Tastenkürzel N">N</kbd></div>
       <div class="quick-row">
         <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder 1h 15m" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
         <button id="quick-start" class="primary-button" type="submit" disabled>▶ Start</button>
@@ -42,6 +38,21 @@
         <button type="button" data-quick-duration="25m">25m</button>
       </div>
       <p id="quick-error" class="quick-error" role="alert" aria-live="polite"></p>
+      <details id="quick-options" class="quick-options"><summary>Optionen</summary>
+        <fieldset class="timer-options"><legend>Timer</legend>
+          <label class="check-option"><input id="timer-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Ohne Server, AWTRIX und CLI</small></span></label>
+        </fieldset>
+        <fieldset class="alarm-form" id="timer-alarm-block"><legend>Browser-Alarm</legend>
+          <label class="check-option"><input type="checkbox" id="timer-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Nur für den nächsten Timerstart</small></span></label>
+          <div class="alarm-fields" id="timer-alarm-fields" hidden>
+            <div><label for="timer-tone">Ton</label><div class="tone-row"><select id="timer-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="timer" aria-label="Ton anhören">▶</button></div></div>
+            <div><label for="timer-repeat">Wiederholung</label><select id="timer-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+            <div class="volume-field"><label for="timer-volume">Lautstärke <output id="timer-volume-label">60 %</output></label><input type="range" id="timer-volume" min="0" max="100" step="5" value="60"></div>
+            <label class="check-option"><input type="checkbox" id="timer-visual"><span>Rote Hervorhebung</span></label>
+            <label class="check-option"><input type="checkbox" id="timer-system"><span>Systembenachrichtigung</span></label>
+          </div>
+        </fieldset>
+      </details>
     </form>
   </section>
   <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel">
@@ -58,7 +69,7 @@
           <button class="control-button primary-control" type="button" data-action="pause" id="hero-toggle"><span class="control-symbol" id="toggle-symbol" aria-hidden="true">Ⅱ</span><span id="toggle-label">Pause</span></button>
           <button class="control-button" type="button" data-action="adjust" data-delta="+1m" id="hero-plus"><span class="control-symbol" aria-hidden="true">+</span><span>1 Min.</span></button>
         </div>
-        <button class="stop-button" type="button" data-action="stop" id="hero-stop">■ Timer beenden</button>
+        <div class="hero-footer"><button class="stop-button" type="button" data-action="stop" id="hero-stop">■ Timer beenden</button><button class="timer-more" type="button" data-action="timer-menu" id="hero-more" aria-label="Weitere Timeraktionen" title="Weitere Aktionen">⋯</button></div>
       </div>
     </div>
   </section>
@@ -66,101 +77,77 @@
   <section class="panel fav-panel" aria-labelledby="fav-title">
     <div class="heading fav-heading">
       <div><h2 id="fav-title">Favoriten <span class="count" id="fav-count">0</span></h2><p class="subtle" id="fav-hint" hidden></p></div>
-      <button type="button" id="sort-toggle" class="secondary-button" aria-pressed="false">✎ Favoriten bearbeiten</button>
+      <div class="fav-header-actions"><button type="button" id="new-favorite" class="primary-button">＋ Favorit</button><button type="button" id="sort-toggle" class="secondary-button" aria-pressed="false">✎ Bearbeiten</button></div>
     </div>
     <div class="sort-info" id="sort-info" hidden>Favoriten bearbeiten, löschen oder innerhalb ihrer Gruppe umsortieren. Die Reihenfolge wird automatisch gespeichert.</div>
     <div class="favorites" id="favorites"></div>
     <div class="sort-status" id="sort-status" role="status" aria-live="polite"></div>
   </section>
 
-  <details class="panel extra-panel" id="new-section">
-    <summary><span>＋ Timer mit Optionen erstellen <span class="subtle">oder Favorit hinzufügen</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
-    <form id="new-form">
-      <div class="fields">
-        <div><label for="duration">Dauer</label><input id="duration" value="10m" required placeholder="10m oder 1h30m"></div>
-        <div><label for="name">Name (optional)</label><input id="name" maxlength="80" placeholder="z. B. Kaffee"></div>
-      </div>
-      <fieldset class="timer-options">
-        <legend>Optionen für diesen Timer</legend>
-        <label class="check-option"><input id="timer-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Offline, ohne AWTRIX und CLI</small></span></label>
-      </fieldset>
-      <fieldset class="alarm-form" id="timer-alarm-block">
-      <legend>Browser-Alarm</legend>
-      <label class="check-option"><input type="checkbox" id="timer-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
-      <div class="alarm-fields" id="timer-alarm-fields" hidden>
-        <div><label for="timer-tone">Ton</label><div class="tone-row"><select id="timer-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="timer" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
-        <div><label for="timer-repeat">Wiederholung</label><select id="timer-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
-        <div class="volume-field"><label for="timer-volume">Lautstärke <output id="timer-volume-label">60 %</output></label><input type="range" id="timer-volume" min="0" max="100" step="5" value="60"></div>
-        <label class="check-option"><input type="checkbox" id="timer-visual"><span>Rote Hervorhebung</span></label>
-        <label class="check-option"><input type="checkbox" id="timer-system"><span>Systembenachrichtigung</span></label>
-      </div>
-    </fieldset>
-      <div class="favorite-group-field"><label for="timer-group">Gruppe (nur beim Speichern als Favorit)</label><input id="timer-group" list="favorite-group-options" maxlength="48" placeholder="Standard · oder Gruppennamen eingeben" autocomplete="off"><div id="timer-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div><small class="subtle">Gruppe anklicken oder neuen Namen eingeben. Leer = Standard.</small></div>
-      <div class="form-actions">
-        <button type="submit" class="primary-button" id="start-btn">▶ Timer starten</button>
-        <button type="button" id="save-favorite">☆ Als Favorit speichern</button>
-      </div>
-    </form>
-  </details>
-
-  <details class="panel extra-panel" id="others-section" open>
+  <details class="panel extra-panel" id="others-section">
     <summary><span>Weitere Timer <span class="count" id="timer-count">0</span></span><span class="chevron" aria-hidden="true">⌄</span></summary>
     <div id="timers"><p class="empty">Keine weiteren Timer.</p></div>
   </details>
-  <details class="panel extra-panel" id="alarm-settings">
-    <summary><span>Browser-Alarme</span><span class="chevron" aria-hidden="true">⌄</span></summary>
-    <div class="alarm-settings-body">
+  <dialog id="settings-dialog" class="edit-dialog settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><h2 id="settings-title">Einstellungen</h2><button type="button" class="dialog-close" data-close-dialog="settings-dialog" aria-label="Schließen">×</button></div>
+    <details class="settings-section" id="settings-alarm-section" open><summary>Browser-Alarme</summary>
       <p class="subtle">Standardwerte für diesen Browser. Favoriten können eigene Einstellungen haben.</p>
       <div class="alarm-fields settings-fields">
-        <div><label for="global-tone">Ton</label><div class="tone-row"><select id="global-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="global" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
+        <div><label for="global-tone">Ton</label><div class="tone-row"><select id="global-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="global" aria-label="Ton anhören">▶</button></div></div>
         <div><label for="global-repeat">Wiederholung</label><select id="global-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
         <div class="volume-field"><label for="global-volume">Lautstärke <output id="global-volume-label">60 %</output></label><input type="range" id="global-volume" min="0" max="100" step="5" value="60"></div>
         <label class="check-option"><input type="checkbox" id="global-visual" checked><span>Rote Hervorhebung</span></label>
         <label class="check-option"><input type="checkbox" id="global-system" checked><span>Systembenachrichtigung</span></label>
       </div>
-      <p class="subtle">Akustische Signale sind nur bei geöffneter App zuverlässig. Für Systembenachrichtigungen ist eine Browserfreigabe erforderlich.</p>
-    </div>
-  </details>
+      <div class="permission-row"><button type="button" id="notifications-enable" class="secondary-button">Benachrichtigungen aktivieren</button><span id="notifications-status" class="notification-status" role="status" hidden></span></div>
+      <p class="subtle">Töne benötigen eine geöffnete App. Systembenachrichtigungen benötigen eine Browserfreigabe.</p>
+    </details>
+    <section class="settings-section" id="backup-settings" hidden></section>
+    <details class="settings-section"><summary>App &amp; Offline</summary><p class="subtle">PWA-Update, Offline-Betrieb und Reparatur.</p><p><a href="pwa-repair.html" id="settings-repair-link" class="settings-link">PWA-Cache reparieren</a></p></details>
+    <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="settings-dialog">Schließen</button></div>
+  </dialog>
   <p id="message" class="message" role="status" aria-live="polite"></p>
   <datalist id="favorite-group-options"></datalist>
   <dialog id="group-dialog" class="edit-dialog" aria-labelledby="group-title">
     <form id="group-form"><h2 id="group-title">Gruppe umbenennen</h2>
       <p class="subtle">Alle Favoriten dieser Gruppe erhalten den neuen Gruppennamen.</p>
       <label for="group-rename">Neuer Name</label><input id="group-rename" required maxlength="48" autocomplete="off">
-      <div class="form-actions edit-actions"><button type="button" id="group-cancel">Abbrechen</button><button type="submit" class="primary-button" id="group-submit">Gruppe umbenennen</button></div>
-      <p class="dialog-error" id="group-error" role="alert"></p>
+      <p class="dialog-error" id="group-error" role="alert"></p><div class="form-actions edit-actions dialog-footer"><button type="button" id="group-cancel">Abbrechen</button><button type="submit" class="primary-button" id="group-submit">Umbenennen</button></div>
     </form>
   </dialog>
   <dialog id="favorite-dialog" class="edit-dialog" aria-labelledby="dialog-title">
-    <form id="edit-form">
-      <h2 id="dialog-title">Favorit bearbeiten</h2>
-      <p class="subtle">Änderungen betreffen nur die Vorlage, nicht bereits gestartete Timer.</p>
-      <div class="fields">
-        <div><label for="edit-duration">Dauer</label><input id="edit-duration" required></div>
-        <div><label for="edit-name">Name</label><input id="edit-name" maxlength="80" required></div>
-        <div class="edit-group-field"><label for="edit-group">Gruppe</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"><div id="edit-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div></div>
+    <form id="edit-form" class="dialog-form" novalidate>
+      <div class="dialog-heading"><h2 id="dialog-title">Neuer Favorit</h2><button type="button" class="dialog-close" data-close-dialog="favorite-dialog" aria-label="Schließen">×</button></div>
+      <div class="dialog-main">
+        <div class="dialog-field"><label for="edit-name">Name</label><input id="edit-name" maxlength="80" required autocomplete="off" placeholder="z. B. Kaffee"></div>
+        <div class="dialog-field"><label for="edit-duration">Dauer</label><input id="edit-duration" required placeholder="z. B. 5m oder 1h 30m" autocomplete="off"></div>
+        <div class="edit-group-field dialog-field"><label for="edit-group">Gruppe (optional)</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"><div id="edit-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div></div>
+        <details id="favorite-alarm-details" class="dialog-optional"><summary>Browser-Alarm <span class="optional-hint">Globale Einstellungen</span></summary>
+          <label class="check-option"><input type="checkbox" id="edit-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
+          <div class="alarm-fields" id="edit-alarm-fields" hidden>
+            <div><label for="edit-tone">Ton</label><div class="tone-row"><select id="edit-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="edit" aria-label="Ton anhören">▶</button></div></div>
+            <div><label for="edit-repeat">Wiederholung</label><select id="edit-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
+            <div class="volume-field"><label for="edit-volume">Lautstärke <output id="edit-volume-label">60 %</output></label><input type="range" id="edit-volume" min="0" max="100" step="5" value="60"></div>
+            <label class="check-option"><input type="checkbox" id="edit-visual"><span>Rote Hervorhebung</span></label>
+            <label class="check-option"><input type="checkbox" id="edit-system"><span>Systembenachrichtigung</span></label>
+          </div>
+        </details>
+        <details class="dialog-optional" id="favorite-more-options"><summary>Weitere Optionen</summary>
+          <label class="check-option"><input id="edit-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Ohne Server, AWTRIX und CLI</small></span></label>
+        </details>
+        <p class="dialog-error" id="edit-error" role="alert"></p>
       </div>
-      <fieldset class="timer-options">
-        <legend>Optionen für diesen Favoriten</legend>
-        <label class="check-option"><input id="edit-browser-only" type="checkbox"><span><strong>Nur in diesem Browser</strong><small>Startet immer lokal, nicht über AWTRIX oder CLI</small></span></label>
-      </fieldset>
-      <fieldset class="alarm-form" id="edit-alarm-block">
-      <legend>Browser-Alarm</legend>
-      <label class="check-option"><input type="checkbox" id="edit-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
-      <div class="alarm-fields" id="edit-alarm-fields" hidden>
-        <div><label for="edit-tone">Ton</label><div class="tone-row"><select id="edit-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="edit" aria-label="Ausgewählten Ton anhören" title="Ton anhören">▶</button></div></div>
-        <div><label for="edit-repeat">Wiederholung</label><select id="edit-repeat"><option value="once">Einmal</option><option value="three">Dreimal</option><option value="until_ack">Bis zur Bestätigung</option></select></div>
-        <div class="volume-field"><label for="edit-volume">Lautstärke <output id="edit-volume-label">60 %</output></label><input type="range" id="edit-volume" min="0" max="100" step="5" value="60"></div>
-        <label class="check-option"><input type="checkbox" id="edit-visual"><span>Rote Hervorhebung</span></label>
-        <label class="check-option"><input type="checkbox" id="edit-system"><span>Systembenachrichtigung</span></label>
-      </div>
-    </fieldset>
-      <div class="form-actions edit-actions">
-        <button type="button" id="edit-cancel">Abbrechen</button>
-        <button type="submit" class="primary-button" id="edit-submit">Änderungen speichern</button>
-      </div>
-      <p class="dialog-error" id="edit-error" role="alert"></p>
+      <div class="form-actions edit-actions dialog-footer"><button type="button" id="edit-cancel">Abbrechen</button><button type="submit" class="primary-button" id="edit-submit">Favorit speichern</button></div>
     </form>
+  </dialog>
+  <dialog id="timer-actions-dialog" class="edit-dialog action-dialog" aria-labelledby="timer-actions-title">
+    <div class="dialog-heading"><h2 id="timer-actions-title">Timer</h2><button type="button" class="dialog-close" data-close-dialog="timer-actions-dialog" aria-label="Schließen">×</button></div>
+    <p id="timer-actions-name" class="subtle"></p>
+    <button type="button" id="timer-save-favorite" class="menu-action">☆ Als Favorit speichern</button>
+  </dialog>
+  <dialog id="confirm-dialog" class="edit-dialog confirm-dialog" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p>
+    <div class="form-actions edit-actions dialog-footer"><button type="button" id="confirm-cancel">Abbrechen</button><button type="button" id="confirm-ok" class="danger-button">Löschen</button></div>
   </dialog>
 </main>
 </body>

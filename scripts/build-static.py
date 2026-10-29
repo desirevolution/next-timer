@@ -47,47 +47,41 @@ def build(destination:Path,version:str)->None:
     # Keep this query parameter unchanged in future releases: it is the
     # persisted installation identity and must not include the build version.
     manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
-    # Keep the checkbox element for the shared form handlers, but remove the
-    # user-facing local/server switch. The standalone mode is not optional.
-    for element_id in ('timer-browser-only','edit-browser-only'):
-        pattern=r'<label class="check-option"><input id="'+element_id+r'"[^>]*>.*?</label>'
-        page,count=re.subn(pattern,f'<input id="{element_id}" type="checkbox" checked hidden>',page,count=1,flags=re.S)
-        if count!=1:raise ValueError(f'Cannot locate {element_id} option')
-    # The server/local checkbox is not meaningful in static mode. Remove the
-    # otherwise empty fieldsets but preserve their hidden inputs for form code.
-    for element_id in ('timer-browser-only','edit-browser-only'):
-        pattern = (r'<fieldset class="timer-options">\s*<legend>.*?</legend>\s*'
-                   r'(<input id="'+element_id+r'"[^>]*>)\s*</fieldset>')
-        page, count = re.subn(pattern, r'\1', page, count=1, flags=re.S)
-        if count != 1: raise ValueError(f'Cannot remove standalone-only empty options fieldset: {element_id}')
+    # In standalone both quick timers and favorites are always browser-only.
+    # The edit checkbox lives in the optional dialog, the quick checkbox in
+    # the inline advanced options. Preserve the inputs for shared JS handlers.
+    for element_id in ('timer-browser-only', 'edit-browser-only'):
+        pattern = r'<label class="check-option"><input id="'+element_id+r'"[^>]*>.*?</label>'
+        page, count = re.subn(pattern, f'<input id="{element_id}" type="checkbox" checked hidden>', page, count=1, flags=re.S)
+        if count != 1: raise ValueError(f'Missing local-only checkbox: {element_id}')
+    # Hide the now-empty advanced option instead of leaving a misleading UI.
+    page = re.sub(r'<fieldset class="timer-options"><legend>Timer</legend>\s*<input id="timer-browser-only"[^>]*>\s*</fieldset>',
+                  '<input id="timer-browser-only" type="checkbox" checked hidden>', page, count=1)
+    page = re.sub(r'<details class="dialog-optional" id="favorite-more-options">.*?<input id="edit-browser-only"[^>]*>\s*</details>',
+                  '<input id="edit-browser-only" type="checkbox" checked hidden>', page, count=1, flags=re.S)
     page=page.replace('Verbinde …','Nur Browser')
-    # The local backup is required because clearing browser data erases all
-    # favorites and timers. It is deliberately standalone-only.
-    backup='''  <details class="panel extra-panel standalone-backup" id="standalone-backup">
-    <summary><span>Datensicherung</span><span class="chevron" aria-hidden="true">⌄</span></summary>
-    <p class="subtle">Favoriten und lokale Timer werden nur auf diesem Gerät gespeichert.</p>
-    <div class="form-actions">
-      <button type="button" id="standalone-export">JSON-Backup herunterladen</button>
-      <label class="secondary-button backup-import" for="standalone-import">JSON-Backup importieren</label>
-      <input id="standalone-import" type="file" accept="application/json,.json" hidden>
-    </div>
-  </details>
-'''
-    page=page.replace('  <p id="message"',backup+'  <p id="message"')
+    # Keep backup tools inside Settings, not permanently on the start page.
+    backup='''<section class="settings-section" id="backup-settings"><h3>Daten &amp; Sicherung</h3>
+      <p class="subtle">Favoriten und lokale Timer liegen nur in diesem Browser.</p>
+      <div class="form-actions"><button type="button" id="standalone-export">JSON-Backup herunterladen</button>
+      <label class="backup-import" for="standalone-import">JSON-Backup importieren</label>
+      <input id="standalone-import" type="file" accept="application/json,.json" hidden></div></section>'''
+    page, count = re.subn(r'<section class="settings-section" id="backup-settings" hidden></section>',backup,page,count=1)
+    if count != 1: raise ValueError('Missing backup slot in Settings')
     index.write_text(page)
     # The version is part of the cache key, not the asset names. A new
     # deployment's worker will compare versions and offer an explicit update.
     # Tag all asset URLs with the build revision so browser/CDN caches cannot
     # mix JS from an older deployment with a new HTML shell.
     for asset in [dest/'index.html',dest/'sw.js',dest/'pwa-update.js',*(dest/'js').glob('*.js')]:
-        content = asset.read_text().replace('?v=29',f'?v={version}')
+        content = asset.read_text().replace('?v=30',f'?v={version}')
         # The manifest URL changes on each build to avoid stale install
         # metadata in browsers/CDNs. The app identity itself stays stable.
         if asset.name in ('index.html', 'sw.js'):
             content = content.replace('manifest.webmanifest', f'manifest.webmanifest?v={version}')
         asset.write_text(content)
     worker=dest/'sw.js'
-    text=worker.read_text().replace("const VERSION = 'v29';",f"const VERSION = 'static-{version}';")
+    text=worker.read_text().replace("const VERSION = 'v30';",f"const VERSION = 'static-{version}';")
     worker.write_text(text)
     # A repair page outside the SW fetch handler, scoped to this installation.
     (dest/'pwa-repair.html').write_text('''<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

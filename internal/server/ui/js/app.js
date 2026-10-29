@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=29';
-import {createStandaloneAPI} from './standalone-store.js?v=29';
-import {LocalTimers} from './local-timers.js?v=29';
-import {parseQuickTimer} from './quick-timer.js?v=29';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=29';
+import {enableFavoriteSorting} from './favorite-sort.js?v=30';
+import {createStandaloneAPI} from './standalone-store.js?v=30';
+import {LocalTimers} from './local-timers.js?v=30';
+import {parseQuickTimer} from './quick-timer.js?v=30';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=30';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -21,6 +21,7 @@ const durationLabel = raw => {
 const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nexttimer.templates-cache.v1') || '[]');} catch {return [];}})();
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
 let current = {...serverState}, skew = 0, sorting = false, editID = null, renameGroup = null, localTimers;
+let timerMenuID = null, previousOtherCount = 0;
 
 let renderedFavKey = '', renderedTimerKey = '', renderedFocusID = '', savingOrder = false;
 const remaining = t => t.status==='running'?Math.max(0,t.deadline_ms-(Date.now()+(t.local?0:skew))):t.remaining_ms;
@@ -64,7 +65,7 @@ function drawFocus(){
   $('hero-controls').hidden=!focus;
   $('focus-panel').classList.toggle('idle',!focus);
   if (focus?.id !== renderedFocusID) renderedFocusID=focus?.id||'';
-  for (const action of ['hero-minus','hero-toggle','hero-plus','hero-stop']) $(action).dataset.id=focus?.id||'';
+  for (const action of ['hero-minus','hero-toggle','hero-plus','hero-stop','hero-more']) $(action).dataset.id=focus?.id||'';
   if(focus){$('hero-toggle').dataset.action=focus.status==='paused'?'resume':'pause';$('toggle-symbol').textContent=focus.status==='paused'?'▶':'Ⅱ';$('toggle-label').textContent=focus.status==='paused'?'Weiter':'Pause';}
   refreshTime();
 }
@@ -108,8 +109,8 @@ function drawFavorites(force=false){
   $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'';
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
-    ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
-    <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Öffne „Timer mit Optionen erstellen“, um einen anzulegen.</p>';
+    ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="new-fav-group" data-group="${esc(g.name)}" aria-label="Favorit in Gruppe ${esc(g.name)} hinzufügen" title="Favorit hinzufügen">＋</button><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
+    <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Lege deinen ersten Favoriten an.</p>';
   if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
     const cards=[...group.querySelectorAll('.fav-card')];
     cards.forEach((card,i)=>{
@@ -123,7 +124,7 @@ function drawFavorites(force=false){
 }
 function renderGroupPicks() {
   const groups=favoriteGroups().filter(g=>g.name).map(g=>g.name);
-  for (const prefix of ['timer','edit']) {
+  for (const prefix of ['edit']) {
     const field=$(prefix+'-group'), container=$(prefix+'-group-quick');
     container.hidden=groups.length===0;
     container.innerHTML=groups.map(name=>`<button type="button" class="group-quick-button" data-group-choice="${esc(prefix)}" data-group-name="${esc(name)}" aria-pressed="${String(field.value.trim().toLocaleLowerCase()===name.toLocaleLowerCase())}">${esc(name)}</button>`).join('');
@@ -135,15 +136,18 @@ function highlightGroupPicks(prefix) {
     button.setAttribute('aria-pressed',String(button.dataset.groupName.toLocaleLowerCase()===selected));
   }
 }
-for (const prefix of ['timer','edit']) $(prefix+'-group').addEventListener('input',()=>highlightGroupPicks(prefix));
+$('edit-group').addEventListener('input',()=>highlightGroupPicks('edit'));
 function drawOthers(){
   // Finished timers are announced by the completion banner, not moved to the active list.
   const timers=(current.timers||[]).filter(t=>t.status!=='finished' && t.id!==focusTimer()?.id);
   $('timer-count').textContent=timers.length;
+  if (timers.length === 0) $('others-section').open = false;
+  else if (previousOtherCount === 0) $('others-section').open = true;
+  previousOtherCount = timers.length;
   const key=JSON.stringify(timers);
   if(key===renderedTimerKey)return;
   renderedTimerKey=key;
-  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><div><strong>${esc(t.name)}</strong><div class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='finished'?'Fertig':t.status==='paused'?'Pausiert':'Läuft'}</div></div><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
+  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><div><strong>${esc(t.name)}</strong><div class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='finished'?'Fertig':t.status==='paused'?'Pausiert':'Läuft'}</div></div><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('timer-menu','⋯',t.id,'Weitere Aktionen')}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
 }
 function draw(){drawFocus();drawFavorites();drawOthers();}
 async function commitOrder(ids){
@@ -281,8 +285,11 @@ $('quick-form').addEventListener('submit', async event => {
   quickPending = true;
   quickButton.disabled = true;
   try {
-    await startTimer(entry.duration, entry.name, null, {browser_only:STANDALONE, alarm:null});
+    await startTimer(entry.duration, entry.name, null, formOptions('timer-'));
     quickInput.value = '';
+    $('quick-options').open = false;
+    $('timer-browser-only').checked = STANDALONE;
+    profileForm('timer-');
     message();
     // On touch devices, remove the software keyboard after a successful start.
     if (window.matchMedia?.('(pointer: coarse)').matches) quickInput.blur();
@@ -315,46 +322,81 @@ document.addEventListener('keydown', event => {
     quickInput.focus();
   }
 });
-$('new-form').addEventListener('submit',e=>{e.preventDefault();perform(()=>startTimer($('duration').value,$('name').value,null,formOptions('timer-')));});
-$('save-favorite').addEventListener('click',async()=>{
-  const name=$('name').value.trim()||'Timer';
-  const ok=await perform(()=>api('/templates','POST',{duration:$('duration').value,name,group:$('timer-group').value.trim(),...formOptions('timer-')}));
-  if(ok){$('new-section').open=false;$('new-form').reset();$('duration').value='10m';profileForm('timer-');highlightGroupPicks('timer');}
-});
-function openFavoriteEditor(fav) {
-  editID=fav.id;
-  $('edit-name').value=fav.name;
-  $('edit-duration').value=fav.duration;
-  $('edit-group').value=fav.group||'';
+function durationForEditor(ms){
+  if(!Number.isFinite(ms))return '';
+  if(ms % 3600000===0)return `${ms/3600000}h`;
+  if(ms % 60000===0)return `${ms/60000}m`;
+  if(ms % 1000===0)return `${ms/1000}s`;
+  return `${ms}ms`;
+}
+$('new-favorite').addEventListener('click',()=>openFavoriteEditor());
+$('settings-repair-link').href=STANDALONE?'pwa-repair.html':'/api/pwa-repair';
+function openFavoriteEditor(fav=null,{group="",timer=null}={}) {
+  editID=fav?.id||null;
+  const source=fav||timer;
+  $('dialog-title').textContent=fav?'Favorit bearbeiten':'Neuer Favorit';
+  $('edit-submit').textContent=fav?'Änderungen speichern':'Favorit speichern';
+  $('edit-name').value=source?.name==='Timer'&&!fav?'':source?.name||'';
+  $('edit-duration').value=source ? (source.duration || durationForEditor(source.duration_ms)) : '';
+  $('edit-group').value=fav?.group||group;
   highlightGroupPicks('edit');
-  $('edit-browser-only').checked=STANDALONE||!!fav.browser_only;
+  $('edit-browser-only').checked=STANDALONE||!!source?.browser_only||!!source?.local;
   const defaults=getDefaults();
-  const legacy=(!fav.alarm&&(fav.sound===false||fav.notify===false))?{
-    tone:fav.sound===false?'none':defaults.tone,repeat:defaults.repeat,
-    visual:fav.notify===false?false:defaults.visual,system:fav.notify===false?false:defaults.system,volume:defaults.volume
+  const legacy=(!source?.alarm&&(source?.sound===false||source?.notify===false))?{
+    tone:source.sound===false?'none':defaults.tone,repeat:defaults.repeat,
+    visual:source.notify===false?false:defaults.visual,system:source.notify===false?false:defaults.system,volume:defaults.volume
   }:null;
-  profileForm('edit-',fav.alarm??legacy);
+  profileForm('edit-',source?.alarm??legacy);
+  $('favorite-alarm-details').open=Boolean(source?.alarm||legacy);
+  if($('favorite-more-options')) $('favorite-more-options').open=false;
   $('edit-error').textContent='';
   $('favorite-dialog').showModal();
   $('edit-name').focus();
 }
 $('edit-cancel').addEventListener('click',()=>$('favorite-dialog').close());
-$('favorite-dialog').addEventListener('close',()=>{editID=null;$('edit-error').textContent='';});
+$('favorite-dialog').addEventListener('close',()=>{editID=null;$('edit-form').reset();$('edit-error').textContent='';});
 $('edit-form').addEventListener('submit',async e=>{
   e.preventDefault();
-  if(!editID)return;
   $('edit-submit').disabled=true;
   try {
-    await api('/templates/'+encodeURIComponent(editID),'PUT',{
-      name:$('edit-name').value.trim(),duration:$('edit-duration').value.trim(),
-      group:$('edit-group').value.trim(),browser_only:STANDALONE||$('edit-browser-only').checked,
-      alarm:profileValues('edit-')
-    });
+    const name=$('edit-name').value.trim(), duration=$('edit-duration').value.trim();
+    if(!name)throw Error('Bitte einen Namen eingeben.');
+    if(!duration)throw Error('Bitte eine Dauer eingeben.');
+    const normalized=parseQuickTimer(duration);
+    if(normalized.name)throw Error('Bitte die Dauer getrennt vom Namen eingeben.');
+    const payload={name,duration:normalized.duration,group:$('edit-group').value.trim(),browser_only:STANDALONE||$('edit-browser-only').checked,alarm:profileValues('edit-')};
+    await api(editID?'/templates/'+encodeURIComponent(editID):'/templates',editID?'PUT':'POST',payload);
     $('favorite-dialog').close();
     await reload();
-    message('Favorit gespeichert.');
+    // No toast needed: the newly saved favorite is immediately visible.
+    $('fav-title').scrollIntoView({block:'nearest',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
   } catch(error) {$('edit-error').textContent=error.message;}
   finally {$('edit-submit').disabled=false;}
+});
+$('timer-save-favorite').addEventListener('click',()=>{
+  const source=(current.timers||[]).find(t=>t.id===timerMenuID);
+  $('timer-actions-dialog').close();
+  if(source)openFavoriteEditor(null,{timer:source});
+});
+$('timer-actions-dialog').addEventListener('close',()=>{timerMenuID=null;});
+$('open-settings').addEventListener('click',()=>{$('settings-dialog').showModal();});
+document.querySelectorAll('[data-close-dialog]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.closeDialog).close()));
+let pendingConfirmation=null;
+function confirmAction({title,description,label='Bestätigen',run,danger=true}) {
+  pendingConfirmation=run;
+  $('confirm-title').textContent=title;
+  $('confirm-description').textContent=description;
+  $('confirm-ok').textContent=label;
+  $('confirm-ok').classList.toggle('danger-button',danger);
+  $('confirm-dialog').showModal();
+  $('confirm-cancel').focus();
+}
+$('confirm-cancel').addEventListener('click',()=>$('confirm-dialog').close());
+$('confirm-dialog').addEventListener('close',()=>pendingConfirmation=null);
+$('confirm-ok').addEventListener('click',()=>{
+  const run=pendingConfirmation;
+  $('confirm-dialog').close();
+  if(run)Promise.resolve().then(run).catch(err=>message(err.message,true));
 });
 $('group-cancel').addEventListener('click',()=>$('group-dialog').close());
 $('group-dialog').addEventListener('close',()=>{renameGroup=null;$('group-error').textContent='';});
@@ -385,7 +427,8 @@ document.addEventListener('click',e=>{
   if(!button)return;
   const {action,id}=button.dataset;
   if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
-  if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();return;}
+  if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
+  if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}
   if(action==='fav-up'||action==='fav-down'){moveFavorite(id,action==='fav-up'?-1:1);return;}
   if(action==='start-fav'){if(!sorting)perform(()=>startTimer('','',id));return;}
   if(action==='edit-fav'){
@@ -394,7 +437,16 @@ document.addEventListener('click',e=>{
   }
   if(action==='delete-fav'){
     const fav=(current.templates||[]).find(t=>t.id===id);
-    if(fav&&confirm(`Favorit „${fav.name}“ löschen?`))perform(()=>api('/templates/'+encodeURIComponent(id),'DELETE'));
+    if(fav)confirmAction({title:'Favorit löschen?',description:`„${fav.name}“ wird dauerhaft gelöscht.`,label:'Löschen',run:()=>perform(()=>api('/templates/'+encodeURIComponent(id),'DELETE'))});
+    return;
+  }
+  if(action==='timer-menu'){
+    timerMenuID=id;
+    const selected=(current.timers||[]).find(t=>t.id===id);
+    if(!selected)return;
+    $('timer-actions-name').textContent=selected.name;
+    $('timer-actions-dialog').showModal();
+    $('timer-save-favorite').focus();
     return;
   }
   if(action==='adjust'){
@@ -449,11 +501,12 @@ if(STANDALONE){
     const file=e.target.files?.[0];if(!file)return;
     try{
       const data=standaloneStore.importBackup(JSON.parse(await file.text()));
-      if(!confirm('Favoriten und lokale Timer durch die Sicherung ersetzen?'))return;
-      standaloneStore.replaceFavorites(data.favorites);
-      localStorage.setItem('nexttimer.local-timers.v1',JSON.stringify(data.timers));
-      localTimers.timers=localTimers.read();
-      await reload();message('Sicherung importiert.');
+      confirmAction({title:'Sicherung wiederherstellen?',description:'Alle vorhandenen lokalen Favoriten und Timer werden durch diese Sicherung ersetzt.',label:'Wiederherstellen',danger:true,run:async()=>{
+        standaloneStore.replaceFavorites(data.favorites);
+        localStorage.setItem('nexttimer.local-timers.v1',JSON.stringify(data.timers));
+        localTimers.timers=localTimers.read();
+        await reload();message('Sicherung importiert.');
+      }});
     }catch(err){message(err.message,true);}
     finally{e.target.value='';}
   });
