@@ -31,6 +31,7 @@ jobs:
         run: python3 scripts/build-static.py --output dist/static --version "${GITHUB_SHA::12}"
       - name: Test browser storage and service worker
         run: |
+          python3 scripts/test-static-manifest.py
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-quick-timer.mjs
           node --experimental-default-type=module scripts/test-standalone-store.mjs
