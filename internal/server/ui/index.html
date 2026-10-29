@@ -7,9 +7,9 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=30">
-  <script type="module" src="js/app.js?v=30"></script>
-  <script defer src="pwa-update.js?v=30"></script>
+  <link rel="stylesheet" href="styles.css?v=31">
+  <script type="module" src="js/app.js?v=31"></script>
+  <script defer src="pwa-update.js?v=31"></script>
 </head>
 <body>
 <main class="shell">
@@ -69,7 +69,7 @@
           <button class="control-button primary-control" type="button" data-action="pause" id="hero-toggle"><span class="control-symbol" id="toggle-symbol" aria-hidden="true">Ⅱ</span><span id="toggle-label">Pause</span></button>
           <button class="control-button" type="button" data-action="adjust" data-delta="+1m" id="hero-plus"><span class="control-symbol" aria-hidden="true">+</span><span>1 Min.</span></button>
         </div>
-        <div class="hero-footer"><button class="stop-button" type="button" data-action="stop" id="hero-stop">■ Timer beenden</button><button class="timer-more" type="button" data-action="timer-menu" id="hero-more" aria-label="Weitere Timeraktionen" title="Weitere Aktionen">⋯</button></div>
+        <div class="hero-footer"><button class="stop-button" type="button" data-action="stop" id="hero-stop">■ Timer beenden</button><button class="timer-favorite" type="button" data-action="save-as-favorite" id="hero-favorite" aria-label="Als Favorit speichern" title="Als Favorit speichern">☆ Favorit</button></div>
       </div>
     </div>
   </section>
@@ -139,11 +139,6 @@
       </div>
       <div class="form-actions edit-actions dialog-footer"><button type="button" id="edit-cancel">Abbrechen</button><button type="submit" class="primary-button" id="edit-submit">Favorit speichern</button></div>
     </form>
-  </dialog>
-  <dialog id="timer-actions-dialog" class="edit-dialog action-dialog" aria-labelledby="timer-actions-title">
-    <div class="dialog-heading"><h2 id="timer-actions-title">Timer</h2><button type="button" class="dialog-close" data-close-dialog="timer-actions-dialog" aria-label="Schließen">×</button></div>
-    <p id="timer-actions-name" class="subtle"></p>
-    <button type="button" id="timer-save-favorite" class="menu-action">☆ Als Favorit speichern</button>
   </dialog>
   <dialog id="confirm-dialog" class="edit-dialog confirm-dialog" aria-labelledby="confirm-title">
     <h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p>

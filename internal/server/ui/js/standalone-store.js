@@ -1,6 +1,6 @@
 // Browser-only favorite storage. The public API mirrors the small set of
 // template endpoints used by the shared NextTimer frontend; no HTTP is sent.
-import {parseTimerDuration} from './local-timers.js?v=30';
+import {parseTimerDuration} from './local-timers.js?v=31';
 
 const KEY = 'nexttimer.standalone.templates.v1';
 const BACKUP_VERSION = 1;

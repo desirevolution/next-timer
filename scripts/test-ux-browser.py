@@ -80,9 +80,8 @@ with sync_playwright() as pw:
         page.locator('#quick-input').fill('7m Nudeln')
         page.locator('#quick-input').press('Enter')
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Nudeln'")
-        page.locator('#hero-more').click()
-        assert page.locator('#timer-actions-dialog').evaluate('el=>el.open')
-        page.locator('#timer-save-favorite').click()
+        page.locator('#hero-favorite').click()
+        assert not page.locator('#timer-actions-dialog').count()
         assert page.locator('#edit-name').input_value()=='Nudeln'
         assert page.locator('#edit-duration').input_value()=='7m'
         page.locator('#edit-submit').click()
@@ -92,6 +91,11 @@ with sync_playwright() as pw:
         page.locator('#quick-input').press('Enter')
         page.wait_for_function("document.querySelector('#timer-count').textContent==='1'")
         assert page.locator('#others-section').evaluate('el=>el.open')
+        page.locator('[data-action="save-as-favorite"]').last.click()
+        assert page.locator('#favorite-dialog').evaluate('el=>el.open')
+        assert page.locator('#edit-name').input_value()=='Nudeln'
+        assert page.locator('#edit-duration').input_value()=='7m'
+        page.locator('#edit-cancel').click()
         page.locator('#others-section summary').click()
         assert not page.locator('#others-section').evaluate('el=>el.open')
         page.wait_for_timeout(350)
