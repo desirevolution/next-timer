@@ -247,3 +247,7 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
   .focus-keyboard-hint{display:none}
   .shortcut-list>div{grid-template-columns:80px 1fr}
 }
+
+/* Arrow-key instructions are only relevant for physical-keyboard users. */
+.confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:none;margin:0 0 10px;color:var(--muted);font-size:.78rem}
+@media(hover:hover) and (pointer:fine){.confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:block}}

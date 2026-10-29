@@ -7,9 +7,9 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=33">
-  <script type="module" src="js/app.js?v=33"></script>
-  <script defer src="pwa-update.js?v=33"></script>
+  <link rel="stylesheet" href="styles.css?v=34">
+  <script type="module" src="js/app.js?v=34"></script>
+  <script defer src="pwa-update.js?v=34"></script>
 </head>
 <body>
 <main class="shell">
@@ -37,7 +37,7 @@
         <button type="button" data-quick-duration="10m">10m</button>
         <button type="button" data-quick-duration="25m">25m</button>
       </div>
-      <p id="quick-hint" class="quick-hint">Favoriten mit #1–#0 starten · Esc: Timer auswählen</p>
+      <p id="quick-hint" class="quick-hint">Favoriten mit #1–#0 starten · Esc: Eingabe leeren / Timer auswählen</p>
       <p id="quick-error" class="quick-error" role="alert" aria-live="polite"></p>
       <details id="quick-options" class="quick-options"><summary>Optionen</summary>
         <fieldset class="timer-options"><legend>Timer</legend>
@@ -150,12 +150,12 @@
     </form>
   </dialog>
   <dialog id="confirm-dialog" class="edit-dialog confirm-dialog" aria-labelledby="confirm-title">
-    <div class="dialog-scroll"><h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p></div>
+    <div class="dialog-scroll"><h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p><p class="confirm-keyboard-hint">← / → Auswahl · Enter: ausgewählte Aktion · Esc: abbrechen</p></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" id="confirm-cancel">Abbrechen</button><button type="button" id="confirm-ok" class="danger-button">Löschen</button></div>
   </dialog>
   <dialog id="shortcuts-dialog" class="edit-dialog shortcuts-dialog" aria-labelledby="shortcuts-title">
     <div class="dialog-heading"><h2 id="shortcuts-title">Tastatursteuerung</h2><button type="button" class="dialog-close" data-close-dialog="shortcuts-dialog" aria-label="Schließen">×</button></div>
-    <div class="dialog-scroll"><dl class="shortcut-list"><div><dt><kbd>N</kbd></dt><dd>Timer-Eingabe fokussieren</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Timer oder Favorit starten</dd></div><div><dt><kbd>#1</kbd>–<kbd>#0</kbd></dt><dd>Favorit über die Eingabe starten</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Eingabe leeren; wenn leer, Timer auswählen</dd></div><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Zwischen angezeigten Timern wechseln</dd></div><div><dt><kbd>P</kbd></dt><dd>Angezeigten Timer pausieren/fortsetzen</dd></div><div><dt><kbd>S</kbd></dt><dd>Angezeigten Timer beenden (mit Bestätigung)</dd></div><div><dt><kbd>?</kbd></dt><dd>Diese Hilfe öffnen</dd></div></dl><p class="subtle">Buchstaben-Shortcuts funktionieren außerhalb von Textfeldern; Tab wechselt wie gewohnt zwischen Bedienelementen.</p></div>
+    <div class="dialog-scroll"><dl class="shortcut-list"><div><dt><kbd>N</kbd></dt><dd>Timer-Eingabe fokussieren</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Timer oder Favorit starten</dd></div><div><dt><kbd>#1</kbd>–<kbd>#0</kbd></dt><dd>Favorit über die Eingabe starten</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Eingabe leeren; sonst Timer auswählen / zur Eingabe zurück</dd></div><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Zwischen angezeigten Timern wechseln</dd></div><div><dt><kbd>P</kbd></dt><dd>Angezeigten Timer pausieren/fortsetzen</dd></div><div><dt><kbd>S</kbd></dt><dd>Angezeigten Timer beenden (mit Bestätigung)</dd></div><div><dt><kbd>?</kbd></dt><dd>Diese Hilfe öffnen</dd></div></dl><p class="subtle">Buchstaben-Shortcuts funktionieren außerhalb von Textfeldern. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert weiterhin zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.</p></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="shortcuts-dialog">Schließen</button></div>
   </dialog>
 </main>

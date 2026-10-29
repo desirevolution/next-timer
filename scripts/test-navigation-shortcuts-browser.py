@@ -21,6 +21,10 @@ with sync_playwright() as pw:
         page.wait_for_function("document.querySelector('#connect').textContent==='Nur Browser'")
         page.locator('#new-favorite').click()
         page.locator('#edit-name').fill('Tee')
+        # Arrows in editing dialogs must move the caret, not the button focus.
+        page.locator('#edit-name').press('ArrowLeft')
+        assert page.locator('#edit-name').evaluate('el=>el.selectionStart')==2
+        assert page.locator('#edit-name').evaluate('el=>el===document.activeElement')
         page.locator('#edit-duration').fill('4m')
         page.locator('#edit-shortcut').select_option('1')
         page.locator('#edit-submit').click()
@@ -50,6 +54,25 @@ with sync_playwright() as pw:
         page.wait_for_function("document.querySelector('#timer-count').textContent==='2'")
         assert page.locator('#hero-name').inner_text()=='Zwei'  # automatic: soonest first
         assert page.locator('#focus-position').inner_text()=='3 von 3'
+        # Escape is global on the main screen, even with focus on a favorite,
+        # other button or one of the advanced new-timer controls.
+        page.locator('.fav-start').first.focus()
+        page.keyboard.press('Escape')
+        assert page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('Escape')
+        assert field.evaluate('el=>el===document.activeElement')
+        page.locator('[data-quick-duration="5m"]').focus()
+        page.keyboard.press('Escape')
+        assert page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('Escape')
+        page.locator('#quick-options').evaluate('el=>el.open=true')
+        page.locator('#timer-browser-only').focus()
+        page.keyboard.press('Escape')
+        assert page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
+        page.locator('#hero-toggle').focus()
+        page.keyboard.press('Escape')
+        assert field.evaluate('el=>el===document.activeElement')
+        page.locator('#quick-options').evaluate('el=>el.open=false')
         # Clear text first, then navigate from an empty entry.
         field.fill('10m irgendwas');field.press('Escape')
         assert field.input_value()==''
@@ -69,11 +92,27 @@ with sync_playwright() as pw:
         page.keyboard.press('s')
         assert page.locator('#confirm-dialog').evaluate('el=>el.open')
         assert 'Zwei' in page.locator('#confirm-description').inner_text()
-        page.locator('#confirm-cancel').click()
+        # Left always focuses cancel; right always focuses the destructive
+        # action. Enter activates the highlighted button; Esc only cancels.
+        assert page.locator('#confirm-cancel').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('ArrowRight')
+        assert page.locator('#confirm-ok').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('ArrowLeft')
+        assert page.locator('#confirm-cancel').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('Enter')
+        assert not page.locator('#confirm-dialog').evaluate('el=>el.open')
+        assert page.locator('#hero-name').inner_text()=='Zwei'
+        # All confirmations use the same dialog; Escape never stops a timer.
+        page.locator('#hero-stop').click()
+        page.keyboard.press('ArrowRight')
+        page.keyboard.press('Escape')
+        assert not page.locator('#confirm-dialog').evaluate('el=>el.open')
         assert page.locator('#hero-name').inner_text()=='Zwei'
         page.locator('#hero-stop').click()
         assert page.locator('#confirm-dialog').evaluate('el=>el.open')
-        page.locator('#confirm-ok').click()
+        page.keyboard.press('ArrowRight')
+        assert page.locator('#confirm-ok').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('Enter')
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Tee'") # automatic after deleted
         assert page.locator('#focus-position').inner_text()=='1 von 2'
         page.locator('#focus-previous').click()
@@ -91,6 +130,18 @@ with sync_playwright() as pw:
         page.locator('#open-shortcuts').click()
         assert page.locator('#shortcuts-dialog').evaluate('el=>el.open')
         page.keyboard.press('Escape')
+        # The shared confirmation dialog is also used for deleting favorites.
+        # Arrow navigation is deliberately not attached to editor dialogs.
+        page.locator('#sort-toggle').click()
+        page.locator('[data-action="delete-fav"]').first.click()
+        assert page.locator('#confirm-dialog').evaluate('el=>el.open')
+        assert page.locator('#confirm-cancel').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('ArrowRight')
+        assert page.locator('#confirm-ok').evaluate('el=>el===document.activeElement')
+        page.keyboard.press('Escape')
+        assert not page.locator('#confirm-dialog').evaluate('el=>el.open')
+        assert page.locator('.fav-card').count()==2
+        page.locator('#sort-toggle').click()
         # Both timers are paused: the fallback must show a paused timer rather
         # than the empty state. Also test that stopping the last one clears it.
         page.locator('#hero-toggle').click() # Tee

@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=33';
-import {createStandaloneAPI} from './standalone-store.js?v=33';
-import {LocalTimers} from './local-timers.js?v=33';
-import {parseQuickTimer} from './quick-timer.js?v=33';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=33';
+import {enableFavoriteSorting} from './favorite-sort.js?v=34';
+import {createStandaloneAPI} from './standalone-store.js?v=34';
+import {LocalTimers} from './local-timers.js?v=34';
+import {parseQuickTimer} from './quick-timer.js?v=34';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=34';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -356,23 +356,9 @@ document.querySelectorAll('[data-quick-duration]').forEach(button => button.addE
   quickInput.focus();
   quickInput.setSelectionRange(quickInput.value.length,quickInput.value.length);
 }));
-// One Escape clears text/error; another (with empty input) focuses the timer.
-quickInput.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing ||
-      event.altKey || event.ctrlKey || event.metaKey) return;
-  event.preventDefault();
-  if (quickInput.value || quickError.textContent) {
-    quickInput.value='';
-    quickInput.dispatchEvent(new Event('input', {bubbles:true}));
-  } else {
-    quickInput.blur();
-    if(focusTimer()) $('focus-panel').focus();
-  }
-});
 $('focus-previous').addEventListener('click',()=>selectTimer(-1));
 $('focus-next').addEventListener('click',()=>selectTimer(1));
 $('focus-panel').addEventListener('keydown',event=>{
-  if(event.key==='Escape' && event.target===$('focus-panel')) {event.preventDefault();focusQuickInput(true);return;}
   if(event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
     !['ArrowLeft','ArrowRight'].includes(event.key))return;
   // Only when navigating the timer, not when editing another field.
@@ -464,6 +450,16 @@ function confirmAction({title,description,label='Bestätigen',run,danger=true}) 
   $('confirm-dialog').showModal();
   $('confirm-cancel').focus();
 }
+// Only two-action confirmation dialogs use horizontal arrow navigation.
+// Editing dialogs must keep the arrows for text cursors, selects and sliders.
+$('confirm-dialog').addEventListener('keydown',event=>{
+  if(event.defaultPrevented || event.repeat || event.isComposing ||
+     event.altKey || event.ctrlKey || event.metaKey) return;
+  if(event.key==='ArrowLeft' || event.key==='ArrowRight') {
+    event.preventDefault();
+    $(event.key==='ArrowLeft'?'confirm-cancel':'confirm-ok').focus();
+  }
+});
 $('confirm-cancel').addEventListener('click',()=>$('confirm-dialog').close());
 $('confirm-dialog').addEventListener('close',()=>pendingConfirmation=null);
 $('confirm-ok').addEventListener('click',()=>{
@@ -494,11 +490,26 @@ function confirmStop(id) {
   confirmAction({title:'Timer beenden?',description:`„${timer.name}“ (${fmt(remaining(timer))} verbleibend) wirklich beenden?`,label:'Timer beenden',
     run:()=>perform(()=>timerControl(id,'stop'))});
 }
-// Global commands are intentionally inactive inside inputs and modal dialogs.
+// Esc works across the main screen, including buttons, favorites and the
+// advanced timer options. Open dialogs retain native Escape-to-close.
 document.addEventListener('keydown',event=>{
-  if(event.defaultPrevented || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
-     document.querySelector('dialog[open]') ||
-     event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  if(event.defaultPrevented || event.repeat || event.isComposing ||
+     event.altKey || event.ctrlKey || event.metaKey || document.querySelector('dialog[open]')) return;
+  if(event.key==='Escape') {
+    event.preventDefault();
+    if(event.target===quickInput && (quickInput.value || quickError.textContent)) {
+      quickInput.value='';
+      quickInput.dispatchEvent(new Event('input',{bubbles:true}));
+      return;
+    }
+    // Esc from the timer and its controls returns to the input. Everywhere
+    // else it enters timer navigation, or the input if there is no timer.
+    if($('focus-panel').contains(event.target) || !focusTimer()) focusQuickInput(true);
+    else $('focus-panel').focus({preventScroll:true});
+    return;
+  }
+  // Letter shortcuts are disabled while editing fields, but Esc above is not.
+  if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
   const key=event.key.toLowerCase();
   if(key==='n') {event.preventDefault();focusQuickInput(true);}
   else if(event.key==='?' || (event.code==='Slash' && event.shiftKey)) {event.preventDefault();$('shortcuts-dialog').showModal();}
