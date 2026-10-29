@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=32';
-import {createStandaloneAPI} from './standalone-store.js?v=32';
-import {LocalTimers} from './local-timers.js?v=32';
-import {parseQuickTimer} from './quick-timer.js?v=32';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=32';
+import {enableFavoriteSorting} from './favorite-sort.js?v=33';
+import {createStandaloneAPI} from './standalone-store.js?v=33';
+import {LocalTimers} from './local-timers.js?v=33';
+import {parseQuickTimer} from './quick-timer.js?v=33';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=33';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -22,6 +22,9 @@ const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nex
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
 let current = {...serverState}, skew = 0, sorting = false, editID = null, renameGroup = null, localTimers;
 let previousOtherCount = 0;
+// null means automatic selection (soonest running timer); otherwise pin the
+// explicitly selected timer until it disappears or finishes.
+let manualFocusID = null;
 
 let renderedFavKey = '', renderedTimerKey = '', renderedFocusID = '', savingOrder = false;
 const remaining = t => t.status==='running'?Math.max(0,t.deadline_ms-(Date.now()+(t.local?0:skew))):t.remaining_ms;
@@ -53,13 +56,36 @@ async function reload(){apply(await api('/state'));}
 function button(action,label,id,title,extra='') {
   return `<button type="button" data-action="${action}" data-id="${esc(id)}" class="${extra}" aria-label="${esc(title)}" title="${esc(title)}">${label}</button>`;
 }
-function focusTimer(){
-  return (current.timers||[]).filter(t=>t.status==='running')
-    .sort((a,b)=>remaining(a)-remaining(b)||a.created_at_ms-b.created_at_ms||a.id.localeCompare(b.id))[0];
+function navigableTimers() {
+  // Stable carousel order: pausing or adjusting a countdown must never
+  // silently reshuffle the position indicator or the navigation buttons.
+  return (current.timers||[]).filter(t=>t.status==='running'||t.status==='paused')
+    .sort((a,b)=>a.created_at_ms-b.created_at_ms || a.id.localeCompare(b.id));
+}
+function focusTimer() {
+  const timers=navigableTimers();
+  if (manualFocusID && !timers.some(t=>t.id===manualFocusID)) manualFocusID=null;
+  if(manualFocusID) return timers.find(t=>t.id===manualFocusID);
+  // Automatic mode is intentionally independent of carousel/creation order.
+  return timers.filter(t=>t.status==='running')
+    .sort((a,b)=>remaining(a)-remaining(b)||a.created_at_ms-b.created_at_ms||a.id.localeCompare(b.id))[0]
+    || timers[0]; // If everything is paused, show the first paused timer.
+}
+function selectTimer(offset) {
+  const timers=navigableTimers();
+  if(!timers.length) return;
+  const index=Math.max(0,timers.findIndex(t=>t.id===focusTimer()?.id));
+  manualFocusID=timers[(index+offset+timers.length)%timers.length].id;
+  draw();
 }
 function drawFocus(){
   const focus=focusTimer();
-  $('head-status').textContent=focus?(focus.local&&!STANDALONE?'Lokal · läuft':'Läuft'):'Bereit';
+  const timers=navigableTimers();
+  $('head-status').textContent=focus?(focus.status==='paused'?'Pausiert':focus.local&&!STANDALONE?'Lokal · läuft':'Läuft'):'Bereit';
+  const index=focus?timers.findIndex(t=>t.id===focus.id):-1;
+  $('focus-position').textContent=focus?`${index+1} von ${timers.length}`:'';
+  $('focus-previous').hidden=$('focus-next').hidden=timers.length<2;
+  $('focus-keyboard-hint').hidden=!focus;
   $('hero-name').textContent=focus?focus.name:'Noch kein Timer aktiv';
   $('hero-origin').hidden=STANDALONE||!focus?.local;
   $('hero-controls').hidden=!focus;
@@ -91,8 +117,9 @@ function favoriteGroups() {
     {name:'',items:favs.filter(f=>!groupOf(f))}].filter(g=>g.items.length);
 }
 function favoriteCard(fav){
-  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}, starten"><span class="fav-name">${esc(fav.name)}</span><span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
-  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
+  const badge=fav.shortcut?`<span class="favorite-shortcut" title="Mit #${esc(fav.shortcut)} in der Eingabe starten">#${esc(fav.shortcut)}</span>`:'';
+  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}${fav.shortcut?', Schnellstart #'+esc(fav.shortcut):''}, starten"><span class="fav-name">${esc(fav.name)}</span>${badge}<span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
+  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)} ${badge}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
 }
 function drawFavorites(force=false){
   const favs=current.templates||[];
@@ -139,7 +166,7 @@ function highlightGroupPicks(prefix) {
 $('edit-group').addEventListener('input',()=>highlightGroupPicks('edit'));
 function drawOthers(){
   // Finished timers are announced by the completion banner, not moved to the active list.
-  const timers=(current.timers||[]).filter(t=>t.status!=='finished' && t.id!==focusTimer()?.id);
+  const timers=navigableTimers().filter(t=>t.id!==focusTimer()?.id);
   $('timer-count').textContent=timers.length;
   if (timers.length === 0) $('others-section').open = false;
   else if (previousOtherCount === 0) $('others-section').open = true;
@@ -147,7 +174,7 @@ function drawOthers(){
   const key=JSON.stringify(timers);
   if(key===renderedTimerKey)return;
   renderedTimerKey=key;
-  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><div><strong>${esc(t.name)}</strong><div class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='finished'?'Fertig':t.status==='paused'?'Pausiert':'Läuft'}</div></div><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('save-as-favorite','☆',t.id,'Als Favorit speichern','timer-favorite-icon')}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
+  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><button type="button" class="timer-show" data-action="show-timer" data-id="${esc(t.id)}" title="Diesen Timer groß anzeigen"><strong>${esc(t.name)}</strong><span class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='paused'?'Pausiert':'Läuft'} · Anzeigen</span></button><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('save-as-favorite','☆',t.id,'Als Favorit speichern','timer-favorite-icon')}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
 }
 function draw(){drawFocus();drawFavorites();drawOthers();}
 async function commitOrder(ids){
@@ -264,8 +291,8 @@ const quickError = $('quick-error');
 // Only focus a physical-keyboard desktop automatically. On touch devices,
 // focusing the input would unnecessarily open the on-screen keyboard.
 const desktopKeyboard = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
-function focusQuickInput() {
-  if (desktopKeyboard() && !document.querySelector('dialog[open]')) quickInput.focus({preventScroll:true});
+function focusQuickInput(force=false) {
+  if ((force || desktopKeyboard()) && !document.querySelector('dialog[open]')) quickInput.focus({preventScroll:true});
 }
 let quickPending = false;
 function clearQuickError() {
@@ -280,8 +307,17 @@ $('quick-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (quickPending) return;
   clearQuickError();
-  let entry;
-  try { entry = parseQuickTimer(quickInput.value); }
+  let entry, favoriteID=null;
+  try {
+    const value=quickInput.value.trim();
+    if(/^#[0-9]$/.test(value)) {
+      const favorite=(current.templates||[]).find(f=>f.shortcut===value.slice(1));
+      if(!favorite) throw Error(`Kein Favorit für ${value} zugewiesen.`);
+      favoriteID=favorite.id;
+    } else if (value.startsWith('#')) {
+      throw Error('Favorit mit #1 bis #0 aufrufen.');
+    } else entry=parseQuickTimer(value);
+  }
   catch (error) {
     quickError.textContent = error.message;
     quickInput.setAttribute('aria-invalid', 'true');
@@ -291,7 +327,8 @@ $('quick-form').addEventListener('submit', async event => {
   quickPending = true;
   quickButton.disabled = true;
   try {
-    await startTimer(entry.duration, entry.name, null, formOptions('timer-'));
+    if(favoriteID) await startTimer('','',favoriteID);
+    else await startTimer(entry.duration, entry.name, null, formOptions('timer-'));
     quickInput.value = '';
     $('quick-options').open = false;
     $('timer-browser-only').checked = STANDALONE;
@@ -319,15 +356,29 @@ document.querySelectorAll('[data-quick-duration]').forEach(button => button.addE
   quickInput.focus();
   quickInput.setSelectionRange(quickInput.value.length,quickInput.value.length);
 }));
-// Escape only clears the quick entry; all other keys remain available to
-// regular typing, tab navigation and native dialog controls.
+// One Escape clears text/error; another (with empty input) focuses the timer.
 quickInput.addEventListener('keydown', event => {
   if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing ||
-      event.altKey || event.ctrlKey || event.metaKey ||
-      (!quickInput.value && !quickError.textContent)) return;
+      event.altKey || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
-  quickInput.value = '';
-  quickInput.dispatchEvent(new Event('input', {bubbles:true}));
+  if (quickInput.value || quickError.textContent) {
+    quickInput.value='';
+    quickInput.dispatchEvent(new Event('input', {bubbles:true}));
+  } else {
+    quickInput.blur();
+    if(focusTimer()) $('focus-panel').focus();
+  }
+});
+$('focus-previous').addEventListener('click',()=>selectTimer(-1));
+$('focus-next').addEventListener('click',()=>selectTimer(1));
+$('focus-panel').addEventListener('keydown',event=>{
+  if(event.key==='Escape' && event.target===$('focus-panel')) {event.preventDefault();focusQuickInput(true);return;}
+  if(event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
+    !['ArrowLeft','ArrowRight'].includes(event.key))return;
+  // Only when navigating the timer, not when editing another field.
+  if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  event.preventDefault();
+  selectTimer(event.key==='ArrowLeft'?-1:1);
 });
 function durationForEditor(ms){
   if(!Number.isFinite(ms))return '';
@@ -346,6 +397,7 @@ function openFavoriteEditor(fav=null,{group="",timer=null}={}) {
   $('edit-name').value=source?.name==='Timer'&&!fav?'':source?.name||'';
   $('edit-duration').value=source ? (source.duration || durationForEditor(source.duration_ms)) : '';
   $('edit-group').value=fav?.group||group;
+  $('edit-shortcut').value=fav?.shortcut||'';
   highlightGroupPicks('edit');
   $('edit-browser-only').checked=STANDALONE||!!source?.browser_only||!!source?.local;
   const defaults=getDefaults();
@@ -371,7 +423,9 @@ $('edit-form').addEventListener('submit',async e=>{
     if(!duration)throw Error('Bitte eine Dauer eingeben.');
     const normalized=parseQuickTimer(duration);
     if(normalized.name)throw Error('Bitte die Dauer getrennt vom Namen eingeben.');
-    const payload={name,duration:normalized.duration,group:$('edit-group').value.trim(),browser_only:STANDALONE||$('edit-browser-only').checked,alarm:profileValues('edit-')};
+    const shortcut=$('edit-shortcut').value;
+    if(shortcut && (current.templates||[]).some(f=>f.id!==editID && f.shortcut===shortcut))throw Error(`Schnellstart #${shortcut} ist bereits vergeben.`);
+    const payload={name,duration:normalized.duration,group:$('edit-group').value.trim(),shortcut,browser_only:STANDALONE||$('edit-browser-only').checked,alarm:profileValues('edit-')};
     await api(editID?'/templates/'+encodeURIComponent(editID):'/templates',editID?'PUT':'POST',payload);
     $('favorite-dialog').close();
     await reload();
@@ -380,7 +434,25 @@ $('edit-form').addEventListener('submit',async e=>{
   } catch(error) {$('edit-error').textContent=error.message;}
   finally {$('edit-submit').disabled=false;}
 });
-$('open-settings').addEventListener('click',()=>{$('settings-dialog').showModal();});
+// Use the *visible* viewport, not the layout viewport behind a soft keyboard.
+// Avoid reflow by updating only when the dimensions actually change.
+function updateDialogViewport() {
+  const v=window.visualViewport;
+  const style=document.documentElement.style;
+  if(v) {
+    style.setProperty('--dialog-viewport-height',`${Math.max(0,v.height)}px`);
+    style.setProperty('--dialog-viewport-top',`${v.offsetTop}px`);
+  } else {
+    style.removeProperty('--dialog-viewport-height');
+    style.removeProperty('--dialog-viewport-top');
+  }
+}
+window.visualViewport?.addEventListener('resize',updateDialogViewport);
+window.visualViewport?.addEventListener('scroll',updateDialogViewport);
+window.addEventListener('resize',updateDialogViewport);
+updateDialogViewport();
+$('open-settings').addEventListener('click',()=>{$('settings-dialog').showModal();updateDialogViewport();});
+$('open-shortcuts').addEventListener('click',()=>$('shortcuts-dialog').showModal());
 document.querySelectorAll('[data-close-dialog]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.closeDialog).close()));
 let pendingConfirmation=null;
 function confirmAction({title,description,label='Bestätigen',run,danger=true}) {
@@ -416,6 +488,27 @@ $('sort-toggle').addEventListener('click',()=>{
   sortStatus();
   drawFavorites(true);
 });
+function confirmStop(id) {
+  const timer=(current.timers||[]).find(t=>t.id===id && (t.status==='running'||t.status==='paused'));
+  if(!timer)return;
+  confirmAction({title:'Timer beenden?',description:`„${timer.name}“ (${fmt(remaining(timer))} verbleibend) wirklich beenden?`,label:'Timer beenden',
+    run:()=>perform(()=>timerControl(id,'stop'))});
+}
+// Global commands are intentionally inactive inside inputs and modal dialogs.
+document.addEventListener('keydown',event=>{
+  if(event.defaultPrevented || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
+     document.querySelector('dialog[open]') ||
+     event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  const key=event.key.toLowerCase();
+  if(key==='n') {event.preventDefault();focusQuickInput(true);}
+  else if(event.key==='?' || (event.code==='Slash' && event.shiftKey)) {event.preventDefault();$('shortcuts-dialog').showModal();}
+  else if(key==='p' && focusTimer()) {
+    event.preventDefault();
+    const timer=focusTimer();
+    manualFocusID=timer.id; // pausing keeps this timer in view for resuming
+    perform(()=>timerControl(timer.id,timer.status==='paused'?'resume':'pause'));
+  } else if(key==='s' && focusTimer()) {event.preventDefault();confirmStop(focusTimer().id);}
+});
 document.addEventListener('click',e=>{
   const groupButton=e.target.closest('button[data-group-choice]');
   if(groupButton){
@@ -427,6 +520,7 @@ document.addEventListener('click',e=>{
   const button=e.target.closest('button[data-action]');
   if(!button)return;
   const {action,id}=button.dataset;
+  if(action==='show-timer') {manualFocusID=id;draw();$('focus-panel').focus();return;}
   if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
   if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}
@@ -455,6 +549,10 @@ document.addEventListener('click',e=>{
     const timer=(current.timers||[]).find(t=>t.id===id);
     if(timer)openFavoriteEditor(null,{timer});
     return;
+  }
+  if(action==='stop') {confirmStop(id);return;}
+  if(action==='pause'||action==='resume') {
+    if(focusTimer()?.id===id) manualFocusID=id;
   }
   if(action==='adjust'){
     const delta=button.dataset.delta||'+1m';

@@ -7,15 +7,15 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=32">
-  <script type="module" src="js/app.js?v=32"></script>
-  <script defer src="pwa-update.js?v=32"></script>
+  <link rel="stylesheet" href="styles.css?v=33">
+  <script type="module" src="js/app.js?v=33"></script>
+  <script defer src="pwa-update.js?v=33"></script>
 </head>
 <body>
 <main class="shell">
   <header class="app-header">
     <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><h1>NextTimer</h1></div>
-    <div class="header-actions"><div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div><button type="button" id="open-settings" class="header-settings" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button></div>
+    <div class="header-actions"><div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div><button type="button" id="open-shortcuts" class="header-settings shortcuts-button" aria-label="Tastaturkürzel anzeigen" title="Tastaturkürzel (?)">⌨</button><button type="button" id="open-settings" class="header-settings" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button></div>
   </header>
 
   <div id="pwa-update-banner" class="pwa-update-banner" role="status" hidden><div><strong>Eine neue Version von NextTimer ist verfügbar.</strong><span>Aktualisieren, wenn du bereit bist. Laufende lokale Timer bleiben gespeichert.</span></div><div class="update-actions"><button type="button" id="pwa-update-later">Später</button><button type="button" id="pwa-update-now" class="primary-button">Aktualisieren</button></div></div>
@@ -27,7 +27,7 @@
     <form id="quick-form" novalidate>
       <h2 id="quick-title">Neuer Timer</h2>
       <div class="quick-row">
-        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder 1h 15m" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
+        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder #1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error quick-hint">
         <button id="quick-start" class="primary-button" type="submit" disabled>▶ Start</button>
       </div>
       <div class="quick-presets" aria-label="Dauer vorgeben">
@@ -37,6 +37,7 @@
         <button type="button" data-quick-duration="10m">10m</button>
         <button type="button" data-quick-duration="25m">25m</button>
       </div>
+      <p id="quick-hint" class="quick-hint">Favoriten mit #1–#0 starten · Esc: Timer auswählen</p>
       <p id="quick-error" class="quick-error" role="alert" aria-live="polite"></p>
       <details id="quick-options" class="quick-options"><summary>Optionen</summary>
         <fieldset class="timer-options"><legend>Timer</legend>
@@ -55,13 +56,20 @@
       </details>
     </form>
   </section>
-  <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel">
-    <div class="heading"><h2 id="focus-title">Nächster Ablauf</h2><span class="pill" id="head-status">Bereit</span></div>
+  <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel" tabindex="-1">
+    <div class="heading"><h2 id="focus-title">Timer</h2><div class="focus-heading-meta"><span class="focus-position" id="focus-position" aria-live="polite"></span><span class="pill" id="head-status">Bereit</span></div></div>
     <div class="focus-layout">
       <div class="focus-readout">
-        <div class="timer-title"><div class="timer-name" id="hero-name">Noch kein Timer aktiv</div></div><div class="timer-origin" id="hero-origin" hidden>Nur in diesem Browser · nicht auf AWTRIX</div>
-        <div class="clock" id="hero-time">--:--</div>
+        <div class="focus-carousel">
+          <button type="button" id="focus-previous" class="focus-arrow" aria-label="Vorherigen Timer anzeigen" title="Vorheriger Timer (←)" hidden>‹</button>
+          <div class="focus-timer-content">
+            <div class="timer-title"><div class="timer-name" id="hero-name">Noch kein Timer aktiv</div></div><div class="timer-origin" id="hero-origin" hidden>Nur in diesem Browser · nicht auf AWTRIX</div>
+            <div class="clock" id="hero-time">--:--</div>
+          </div>
+          <button type="button" id="focus-next" class="focus-arrow" aria-label="Nächsten Timer anzeigen" title="Nächster Timer (→)" hidden>›</button>
+        </div>
         <div class="progress"><div class="bar" role="progressbar" aria-label="Fortschritt des Haupttimers" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="hero-progress"><div id="hero-bar"></div></div></div>
+        <p class="focus-keyboard-hint" id="focus-keyboard-hint" hidden>← → Timer wechseln · P Pause/Weiter · S Beenden · N Eingabe</p>
       </div>
       <div class="hero-controls" id="hero-controls" hidden>
         <div class="control-trio">
@@ -90,7 +98,7 @@
   </details>
   <dialog id="settings-dialog" class="edit-dialog settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-heading"><h2 id="settings-title">Einstellungen</h2><button type="button" class="dialog-close" data-close-dialog="settings-dialog" aria-label="Schließen">×</button></div>
-    <details class="settings-section" id="settings-alarm-section" open><summary>Browser-Alarme</summary>
+    <div class="dialog-scroll settings-scroll"><details class="settings-section" id="settings-alarm-section" open><summary>Browser-Alarme</summary>
       <p class="subtle">Standardwerte für diesen Browser. Favoriten können eigene Einstellungen haben.</p>
       <div class="alarm-fields settings-fields">
         <div><label for="global-tone">Ton</label><div class="tone-row"><select id="global-tone"><option value="none">Kein Ton</option><option value="gong">Gong</option><option value="bell">Bell</option><option value="digital">Digital</option><option value="alert">Alert</option></select><button type="button" class="tone-preview" data-preview="global" aria-label="Ton anhören">▶</button></div></div>
@@ -103,16 +111,16 @@
       <p class="subtle">Töne benötigen eine geöffnete App. Systembenachrichtigungen benötigen eine Browserfreigabe.</p>
     </details>
     <section class="settings-section" id="backup-settings" hidden></section>
-    <details class="settings-section"><summary>App &amp; Offline</summary><p class="subtle">PWA-Update, Offline-Betrieb und Reparatur.</p><p><a href="pwa-repair.html" id="settings-repair-link" class="settings-link">PWA-Cache reparieren</a></p></details>
+    <details class="settings-section"><summary>App &amp; Offline</summary><p class="subtle">PWA-Update, Offline-Betrieb und Reparatur.</p><p><a href="pwa-repair.html" id="settings-repair-link" class="settings-link">PWA-Cache reparieren</a></p></details></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="settings-dialog">Schließen</button></div>
   </dialog>
   <p id="message" class="message" role="status" aria-live="polite"></p>
   <datalist id="favorite-group-options"></datalist>
   <dialog id="group-dialog" class="edit-dialog" aria-labelledby="group-title">
-    <form id="group-form"><h2 id="group-title">Gruppe umbenennen</h2>
+    <form id="group-form"><div class="dialog-scroll"><h2 id="group-title">Gruppe umbenennen</h2>
       <p class="subtle">Alle Favoriten dieser Gruppe erhalten den neuen Gruppennamen.</p>
       <label for="group-rename">Neuer Name</label><input id="group-rename" required maxlength="48" autocomplete="off">
-      <p class="dialog-error" id="group-error" role="alert"></p><div class="form-actions edit-actions dialog-footer"><button type="button" id="group-cancel">Abbrechen</button><button type="submit" class="primary-button" id="group-submit">Umbenennen</button></div>
+      <p class="dialog-error" id="group-error" role="alert"></p></div><div class="form-actions edit-actions dialog-footer"><button type="button" id="group-cancel">Abbrechen</button><button type="submit" class="primary-button" id="group-submit">Umbenennen</button></div>
     </form>
   </dialog>
   <dialog id="favorite-dialog" class="edit-dialog" aria-labelledby="dialog-title">
@@ -121,6 +129,7 @@
       <div class="dialog-main">
         <div class="dialog-field"><label for="edit-name">Name</label><input id="edit-name" maxlength="80" required autocomplete="off" placeholder="z. B. Kaffee"></div>
         <div class="dialog-field"><label for="edit-duration">Dauer</label><input id="edit-duration" required placeholder="z. B. 5m oder 1h 30m" autocomplete="off"></div>
+        <div class="dialog-field"><label for="edit-shortcut">Schnellstart (optional)</label><select id="edit-shortcut"><option value="">Keine Nummer</option><option value="1">#1</option><option value="2">#2</option><option value="3">#3</option><option value="4">#4</option><option value="5">#5</option><option value="6">#6</option><option value="7">#7</option><option value="8">#8</option><option value="9">#9</option><option value="0">#0</option></select><small class="field-hint">#Nummer + Enter startet den Favoriten direkt.</small></div>
         <div class="edit-group-field dialog-field"><label for="edit-group">Gruppe (optional)</label><input id="edit-group" list="favorite-group-options" maxlength="48" placeholder="Standard" autocomplete="off"><div id="edit-group-quick" class="group-quick-picks" aria-label="Bestehende Gruppen auswählen" hidden></div></div>
         <details id="favorite-alarm-details" class="dialog-optional"><summary>Browser-Alarm <span class="optional-hint">Globale Einstellungen</span></summary>
           <label class="check-option"><input type="checkbox" id="edit-alarm-custom"><span><strong>Eigene Alarmeinstellungen</strong><small>Sonst gelten die Einstellungen dieses Browsers.</small></span></label>
@@ -141,8 +150,13 @@
     </form>
   </dialog>
   <dialog id="confirm-dialog" class="edit-dialog confirm-dialog" aria-labelledby="confirm-title">
-    <h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p>
+    <div class="dialog-scroll"><h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" id="confirm-cancel">Abbrechen</button><button type="button" id="confirm-ok" class="danger-button">Löschen</button></div>
+  </dialog>
+  <dialog id="shortcuts-dialog" class="edit-dialog shortcuts-dialog" aria-labelledby="shortcuts-title">
+    <div class="dialog-heading"><h2 id="shortcuts-title">Tastatursteuerung</h2><button type="button" class="dialog-close" data-close-dialog="shortcuts-dialog" aria-label="Schließen">×</button></div>
+    <div class="dialog-scroll"><dl class="shortcut-list"><div><dt><kbd>N</kbd></dt><dd>Timer-Eingabe fokussieren</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Timer oder Favorit starten</dd></div><div><dt><kbd>#1</kbd>–<kbd>#0</kbd></dt><dd>Favorit über die Eingabe starten</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Eingabe leeren; wenn leer, Timer auswählen</dd></div><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Zwischen angezeigten Timern wechseln</dd></div><div><dt><kbd>P</kbd></dt><dd>Angezeigten Timer pausieren/fortsetzen</dd></div><div><dt><kbd>S</kbd></dt><dd>Angezeigten Timer beenden (mit Bestätigung)</dd></div><div><dt><kbd>?</kbd></dt><dd>Diese Hilfe öffnen</dd></div></dl><p class="subtle">Buchstaben-Shortcuts funktionieren außerhalb von Textfeldern; Tab wechselt wie gewohnt zwischen Bedienelementen.</p></div>
+    <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="shortcuts-dialog">Schließen</button></div>
   </dialog>
 </main>
 </body>

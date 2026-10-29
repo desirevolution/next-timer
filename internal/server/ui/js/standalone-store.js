@@ -1,6 +1,6 @@
 // Browser-only favorite storage. The public API mirrors the small set of
 // template endpoints used by the shared NextTimer frontend; no HTTP is sent.
-import {parseTimerDuration} from './local-timers.js?v=32';
+import {parseTimerDuration} from './local-timers.js?v=33';
 
 const KEY = 'nexttimer.standalone.templates.v1';
 const BACKUP_VERSION = 1;
@@ -28,7 +28,9 @@ function normalizeFavorite(raw, existing) {
   if (!name || [...name].length > 80) throw Error('Favoritenname muss 1–80 Zeichen haben.');
   const ms = parseTimerDuration(raw.duration);
   const group = normalizeGroup(raw.group);
-  return {id:existing?.id || id(), name, duration:`${ms}ms`, group,
+  const shortcut=raw.shortcut ?? '';
+  if(typeof shortcut!=='string' || (shortcut!=='' && !/^[0-9]$/.test(shortcut))) throw Error('Schnellstart muss eine Ziffer von 0 bis 9 sein.');
+  return {id:existing?.id || id(), name, duration:`${ms}ms`, group, shortcut,
     group_order:existing?.group_order||0, browser_only:true,
     sound:raw.sound!==false,notify:raw.notify!==false,alarm:normalizeAlarm(raw.alarm)};
 }
@@ -47,11 +49,13 @@ function groupsOf(items) {
 function validateItems(items) {
   if (!Array.isArray(items) || items.length>500) throw Error('Ungültige Favoritendaten.');
   const result=[];
-  const ids=new Set();
+  const ids=new Set(), shortcuts=new Set();
   for(const raw of items) {
     const t=normalizeFavorite(raw,{id:raw.id,group_order:raw.group_order});
     if(typeof t.id!=='string'||!t.id||ids.has(t.id)) throw Error('Doppelte oder ungültige Favoriten-ID.');
     ids.add(t.id);
+    if(t.shortcut && shortcuts.has(t.shortcut)) throw Error('Diese Schnellstart-Nummer ist bereits vergeben.');
+    if(t.shortcut) shortcuts.add(t.shortcut);
     if(result.some(f=>same(f.group,t.group)&&same(f.name,t.name))) throw Error('Name in dieser Gruppe bereits vergeben.');
     result.push(t);
   }
@@ -79,6 +83,8 @@ export function createStandaloneAPI(onExternalChange=()=>{}) {
   });
   function snapshot(){return {server_now_ms:Date.now(),timers:[],templates:copy(items),groups:groupsOf(items)};}
   function ensureUnique(fav,excludedID='') {
+    if(fav.shortcut && items.some(t=>t.id!==excludedID && t.shortcut===fav.shortcut))
+      throw Error('Diese Schnellstart-Nummer ist bereits vergeben.');
     if(items.some(t=>t.id!==excludedID&&same(t.group,fav.group)&&same(t.name,fav.name)))
       throw Error('Name in dieser Gruppe bereits vergeben.');
   }

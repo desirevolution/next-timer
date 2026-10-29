@@ -487,6 +487,23 @@ func (s *Service) saveTemplatesLocked(list []Template) error {
 	s.templates = list
 	return nil
 }
+
+// validateTemplateShortcut enforces a globally unique optional #1–#0 binding.
+func validateTemplateShortcut(shortcut string, templates []Template, exceptID string) error {
+	if shortcut == "" {
+		return nil
+	}
+	if len(shortcut) != 1 || shortcut[0] < '0' || shortcut[0] > '9' {
+		return errors.New("Schnellstart muss eine Ziffer von 0 bis 9 sein")
+	}
+	for _, t := range templates {
+		if t.ID != exceptID && t.Shortcut == shortcut {
+			return errors.New("Diese Schnellstart-Nummer ist bereits vergeben")
+		}
+	}
+	return nil
+}
+
 func (s *Service) AddTemplate(name, duration string) (Template, error) {
 	return s.AddTemplateConfigured(Template{Name: name, Duration: duration})
 }
@@ -522,7 +539,10 @@ func (s *Service) AddTemplateConfigured(opts Template) (Template, error) {
 			order = s.newGroupOrderLocked()
 		}
 	}
-	item := Template{ID: id("f"), Name: name, Duration: d.String(), Group: group, GroupOrder: order, BrowserOnly: opts.BrowserOnly, Sound: opts.Sound, Notify: opts.Notify, Alarm: opts.Alarm}
+	if err := validateTemplateShortcut(opts.Shortcut, s.templates, ""); err != nil {
+		return Template{}, err
+	}
+	item := Template{ID: id("f"), Name: name, Duration: d.String(), Group: group, GroupOrder: order, Shortcut: opts.Shortcut, BrowserOnly: opts.BrowserOnly, Sound: opts.Sound, Notify: opts.Notify, Alarm: opts.Alarm}
 	list := append(append([]Template{}, s.templates...), item)
 	orderGroups(list)
 	if err = s.saveTemplatesLocked(list); err != nil {
@@ -662,6 +682,10 @@ func (s *Service) UpdateTemplateConfigured(id string, opts Template) (Template, 
 		list = append(list, moved)
 		index = len(list) - 1
 	}
+	if err := validateTemplateShortcut(opts.Shortcut, s.templates, id); err != nil {
+		return Template{}, err
+	}
+	list[index].Shortcut = opts.Shortcut
 	list[index].BrowserOnly = opts.BrowserOnly
 	list[index].Sound = opts.Sound
 	list[index].Notify = opts.Notify

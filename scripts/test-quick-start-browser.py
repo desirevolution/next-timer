@@ -58,7 +58,7 @@ with sync_playwright() as pw:
         assert field.evaluate('(el)=>el===document.activeElement')==(width==1100)
         page.locator('#sort-toggle').focus()
         page.keyboard.press('n')
-        assert page.locator('#sort-toggle').evaluate('(el)=>el===document.activeElement'), 'N must not override normal focus'
+        assert field.evaluate('(el)=>el===document.activeElement'), 'N always focuses entry when explicitly requested'
         field.fill('bad input');field.press('Enter')
         assert page.locator('#quick-error').inner_text()
         assert page.locator('#hero-name').inner_text()=='Noch kein Timer aktiv'
@@ -95,7 +95,7 @@ with sync_playwright() as pw:
         assert favorite.evaluate('(el)=>el===document.activeElement'), 'Keyboard favorite must keep its focus'
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert not errors,errors
-        print(f'Quick Timer DOM {width}px: desktop/touch focus, no N, Enter, Esc, chips, favorites, no overflow / JS errors OK')
+        print(f'Quick Timer DOM {width}px: desktop/touch focus, N, Enter, Esc, chips, favorites, no overflow / JS errors OK')
         page.close()
     browser.close()
 

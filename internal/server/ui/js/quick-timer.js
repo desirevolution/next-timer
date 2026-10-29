@@ -1,4 +1,4 @@
-import {parseTimerDuration} from './local-timers.js?v=32';
+import {parseTimerDuration} from './local-timers.js?v=33';
 
 // Accept a sequence of duration units followed by an optional timer name.
 // The normalized duration is valid for both Go's API and the local timer engine.

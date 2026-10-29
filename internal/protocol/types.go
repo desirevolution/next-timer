@@ -33,6 +33,7 @@ type Template struct {
 	Duration    string        `json:"duration"`
 	Group       string        `json:"group,omitempty"`
 	GroupOrder  int           `json:"group_order,omitempty"`
+	Shortcut    string        `json:"shortcut,omitempty"`
 	BrowserOnly bool          `json:"browser_only,omitempty"`
 	Alarm       *BrowserAlarm `json:"alarm,omitempty"`
 	Sound       *bool         `json:"sound,omitempty"`  // nil on legacy templates means enabled
