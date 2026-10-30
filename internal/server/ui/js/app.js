@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=37';
-import {createStandaloneAPI} from './standalone-store.js?v=37';
-import {LocalTimers} from './local-timers.js?v=37';
-import {parseQuickTimer} from './quick-timer.js?v=37';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=37';
+import {enableFavoriteSorting} from './favorite-sort.js?v=38';
+import {createStandaloneAPI} from './standalone-store.js?v=38';
+import {LocalTimers} from './local-timers.js?v=38';
+import {parseQuickTimer} from './quick-timer.js?v=38';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=38';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -127,7 +127,7 @@ function favoriteGroups() {
 function favoriteCard(fav){
   const badge=fav.shortcut?`<span class="favorite-shortcut" title="${esc(L('Mit #{number} in der Eingabe starten',{number:fav.shortcut}))}">#${esc(fav.shortcut)}</span>`:'';
   if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}${fav.shortcut?', Schnellstart #'+esc(fav.shortcut):''}, starten"><span class="fav-name" data-i18n-ignore>${esc(fav.name)}</span>${badge}<span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
-  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name"><span data-i18n-ignore>${esc(fav.name)}</span> ${badge}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
+  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(L('Favorit {name} zum Sortieren ziehen',{name:fav.name}))}" title="${esc(L('Am Griff ziehen'))}">⠿</button><div class="sort-details"><div class="sort-name"><span data-i18n-ignore>${esc(fav.name)}</span> ${badge}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
 }
 function drawFavorites(force=false){
   const favs=current.templates||[];
@@ -137,22 +137,14 @@ function drawFavorites(force=false){
   if(dragSort.isDragging()&&!force)return;
   renderedFavKey=key;
   $('favorites').classList.toggle('sorting',sorting);
-  $('sort-info').hidden=!sorting;
   $('sort-toggle').textContent=sorting?'✓ Fertig':'✎ Favoriten bearbeiten';
   $('sort-toggle').setAttribute('aria-pressed',String(sorting));
   $('fav-hint').hidden=!sorting;
-  $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'';
+  $('fav-hint').textContent=sorting?'Am Griff ziehen, um die Reihenfolge zu ändern.':'';
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
     ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3 ${g.name?'data-i18n-ignore':''}>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="new-fav-group" data-group="${esc(g.name)}" aria-label="Favorit in Gruppe ${esc(g.name)} hinzufügen" title="Favorit hinzufügen">＋</button><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
     <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Lege deinen ersten Favoriten an.</p>';
-  if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
-    const cards=[...group.querySelectorAll('.fav-card')];
-    cards.forEach((card,i)=>{
-      card.querySelector('[data-action="fav-up"]').disabled=i===0;
-      card.querySelector('[data-action="fav-down"]').disabled=i===cards.length-1;
-    });
-  }
   const opts=(current.groups||[]).map(n=>`<option value="${esc(n)}"></option>`).join('');
   $('favorite-group-options').innerHTML=opts;
   renderGroupPicks();
@@ -196,18 +188,6 @@ async function commitOrder(ids){
   finally{savingOrder=false;}
 }
 const dragSort=enableFavoriteSorting($('favorites'),commitOrder,()=>drawFavorites(true));
-function moveFavorite(id,delta){
-  if(savingOrder)return;
-  const ids=(current.templates||[]).map(t=>t.id),from=ids.indexOf(id);
-  if(from<0)return;
-  const group=groupOf(current.templates[from]);
-  const peers=ids.filter(favId=>groupOf(current.templates.find(t=>t.id===favId))===group);
-  const peerIndex=peers.indexOf(id),next=peerIndex+delta;
-  if(next<0||next>=peers.length)return;
-  const otherID=peers[next],to=ids.indexOf(otherID);
-  [ids[from],ids[to]]=[ids[to],ids[from]];
-  commitOrder(ids);
-}
 async function moveGroup(name, delta) {
   if(savingOrder)return;
   const groups=[...(current.groups||[])];
@@ -353,13 +333,9 @@ $('quick-form').addEventListener('submit', async event => {
     $('timer-browser-only').checked = STANDALONE;
     profileForm('timer-');
     message();
-    // Start via Enter or button: prepare the next input on desktop. Do not
-    // steal focus if the user has navigated somewhere else during the request.
-    if (desktopKeyboard()) {
-      if ([quickInput, quickButton, document.body].includes(document.activeElement)) focusQuickInput();
-    } else if (document.activeElement === quickInput) {
-      quickInput.blur();
-    }
+    // Once a timer is started the global timer shortcuts should work right
+    // away. Do not steal focus from controls the user navigated to meanwhile.
+    if (document.activeElement === quickInput) quickInput.blur();
     await reload().catch(() => draw());
   } catch (error) {
     quickError.textContent = error.message;
@@ -377,14 +353,6 @@ document.querySelectorAll('[data-quick-duration]').forEach(button => button.addE
 }));
 $('focus-previous').addEventListener('click',()=>selectTimer(-1));
 $('focus-next').addEventListener('click',()=>selectTimer(1));
-$('focus-panel').addEventListener('keydown',event=>{
-  if(event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
-    !['ArrowLeft','ArrowRight'].includes(event.key))return;
-  // Only when navigating the timer, not when editing another field.
-  if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
-  event.preventDefault();
-  selectTimer(event.key==='ArrowLeft'?-1:1);
-});
 function durationForEditor(ms){
   if(!Number.isFinite(ms))return '';
   if(ms % 3600000===0)return `${ms/3600000}h`;
@@ -521,14 +489,21 @@ document.addEventListener('keydown',event=>{
       quickInput.dispatchEvent(new Event('input',{bubbles:true}));
       return;
     }
-    // Esc from the timer and its controls returns to the input. Everywhere
-    // else it enters timer navigation, or the input if there is no timer.
-    if($('focus-panel').contains(event.target) || !focusTimer()) focusQuickInput(true);
-    else $('focus-panel').focus({preventScroll:true});
+    // No special timer focus mode: leaving any focused control makes global
+    // arrows available. From the unfocused page Esc returns to quick entry.
+    if(event.target===document.body || event.target===document.documentElement) focusQuickInput(true);
+    else if(document.activeElement instanceof HTMLElement) document.activeElement.blur();
     return;
   }
-  // Letter shortcuts are disabled while editing fields, but Esc above is not.
-  if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  // Keep native caret / range / selector navigation intact. Elsewhere the
+  // left/right arrows cycle the displayed timer without a special focus mode.
+  if(event.target.closest('input,textarea,select,[contenteditable="true"],[role="slider"],[role="spinbutton"],[role="radiogroup"],[role="listbox"],[role="tablist"]'))return;
+  if(event.key==='ArrowLeft' || event.key==='ArrowRight') {
+    if(!focusTimer())return;
+    event.preventDefault();
+    selectTimer(event.key==='ArrowLeft'?-1:1);
+    return;
+  }
   const key=event.key.toLowerCase();
   if(key==='n') {event.preventDefault();focusQuickInput(true);}
   else if(event.key==='?' || (event.code==='Slash' && event.shiftKey)) {event.preventDefault();$('shortcuts-dialog').showModal();}
@@ -554,15 +529,9 @@ document.addEventListener('click',e=>{
   if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
   if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}
-  if(action==='fav-up'||action==='fav-down'){moveFavorite(id,action==='fav-up'?-1:1);return;}
   if(action==='start-fav'){
     if(!sorting){
-      const startedByPointer=e.detail>0;
-      perform(()=>startTimer('','',id)).then(success=>{
-        // A mouse click starts a favorite and returns to quick entry. Keyboard
-        // activation keeps the focus on the favorite for accessible navigation.
-        if(success && startedByPointer && [button,document.body].includes(document.activeElement)) focusQuickInput();
-      });
+      perform(()=>startTimer('','',id));
     }
     return;
   }

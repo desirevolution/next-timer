@@ -73,15 +73,14 @@ with sync_playwright() as pw:
         field.fill('1m Tee');field.press('Enter')
         page.wait_for_function("document.querySelector('#hero-name')?.textContent==='Tee'")
         assert field.input_value()==''
-        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100)
+        page.wait_for_function("document.activeElement !== document.querySelector('#quick-input')")
         assert page.locator('#quick-start').is_disabled()
         field.fill('2m Kaffee');page.locator('#quick-start').click()
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='1'")
         assert page.locator('#hero-name').inner_text()=='Kaffee'
         assert 'Tee' in page.locator('#timers').inner_text()
-        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100), 'Button start focus depends on device'
-        # Starting a favorite by mouse returns to the entry; starting it
-        # with Enter respects the keyboard user's current button focus.
+        assert not field.evaluate('(el)=>el===document.activeElement'), 'Start must release text focus for global shortcuts'
+        # Starting a favorite does not reactivate the text input; shortcuts work right away.
         page.locator('#new-favorite').click()
         page.locator('#edit-name').fill('Kurz')
         page.locator('#edit-duration').fill('1m')
@@ -90,7 +89,7 @@ with sync_playwright() as pw:
         favorite=page.locator('.fav-start')
         favorite.click()
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='2'")
-        assert field.evaluate('(el)=>el===document.activeElement')==(width==1100), 'Pointer favorite should restore desktop focus'
+        assert not field.evaluate('(el)=>el===document.activeElement'), 'Pointer favorite should not reactivate the entry'
         favorite.focus()
         favorite.press('Enter')
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='3'")

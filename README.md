@@ -39,21 +39,21 @@ When no running or paused timer exists, the empty main timer view cannot be focu
 
 ### Keyboard controls
 
-The timer entry is focused automatically on desktop, but ordinary Tab navigation stays available. The **⌨** button opens a shortcut reference.
+The timer entry is focused automatically on desktop. After a timer starts, its entry loses focus so timer shortcuts work immediately; press `N` to type another timer. Ordinary Tab navigation remains available. The **⌨** button opens a shortcut reference.
 
 | Keys | Action |
 | --- | --- |
 | `Enter` in the entry | Start a timer (e.g. `5m Tea`) or an assigned favorite (e.g. `#1`) |
 | `N` | Focus the timer entry from anywhere outside a form/dialog |
-| `Esc` | Clear the focused timer entry (if filled); otherwise focus the timer view from any control, or return from the timer view to the entry. In an open dialog, close/cancel it |
-| `←` / `→` in the timer view | Switch to the previous/next timer (wrap around) |
+| `Esc` | Clear the focused timer entry (if filled); otherwise release the current focus, or focus the entry from the unfocused page. In a dialog, close/cancel it |
+| `←` / `→` outside form fields and dialogs | Switch to the previous/next displayed timer (wrap around) |
 | `P` outside form fields | Pause/resume only the displayed timer |
 | `S` outside form fields | Ask to stop only the displayed timer |
 | `?` outside form fields | Open shortcut help |
 
-Each favorite can have one optional, unique `#1`–`#0` assignment, set in its edit form. Assignments remain fixed through favorite reordering and are stored with favorite data (including browser-only backups). Only confirmation dialogs (stop timer, delete favorite, restore backup) use `←` and `→` to focus **Cancel** and **Confirm** respectively; `Enter` activates the focused button, `Esc` cancels. Arrows in edit/settings forms keep their usual cursor and control behavior. Normal text-entry keys are never captured for shortcuts while typing. On mobile the input is **not** auto-focused; dialog action buttons are kept above the software keyboard.
+In favorite edit mode, drag a favorite by its handle to reorder within its group; the layout stays a two-column grid on desktop and becomes a single-column list on narrow mobile screens. The order saves automatically; no separate up/down buttons are required. Each favorite can have one optional, unique `#1`–`#0` assignment, set in its edit form. Assignments remain fixed through favorite reordering and are stored with favorite data (including browser-only backups). Only confirmation dialogs (stop timer, delete favorite, restore backup) use `←` and `→` to focus **Cancel** and **Confirm** respectively; `Enter` activates the focused button, `Esc` cancels. Arrows in edit/settings forms keep their usual cursor and control behavior. Normal text-entry keys are never captured for shortcuts while typing. On mobile the input is **not** auto-focused; dialog action buttons are kept above the software keyboard.
 
-Timers marked **Browser only** run locally and do not use the server, AWTRIX, or the webhook. Browser notifications are available when permitted, but a local timer cannot guarantee an alarm while the app is closed.
+Expired browser alarms appear in one compact scrollable list, with individual acknowledgement and **Acknowledge all** for persistent alarms. Timers marked **Browser only** run locally and do not use the server, AWTRIX, or the webhook. Browser notifications are available when permitted, but a local timer cannot guarantee an alarm while the app is closed.
 
 ## Terminal client
 

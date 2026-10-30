@@ -40,8 +40,10 @@
     // Favorites and groups
     'Favoriten':'Favorites','＋ Favorit':'＋ Favorite','✎ Bearbeiten':'✎ Edit',
     '✎ Favoriten bearbeiten':'✎ Edit favorites','✓ Fertig':'✓ Done',
-    'Favoriten bearbeiten, löschen oder innerhalb ihrer Gruppe umsortieren. Die Reihenfolge wird automatisch gespeichert.':'Edit, delete or reorder favorites within their groups. The order is saved automatically.',
-    'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'Edit templates and reorder within groups',
+    'Favoriten am Griff ziehen, um sie innerhalb ihrer Gruppe zu sortieren. Die Reihenfolge wird automatisch gespeichert.':'Drag favorites by their handles to reorder them within a group. Changes are saved automatically.',
+    'Am Griff ziehen, um die Reihenfolge zu ändern.':'Drag the handle to change the order.',
+    'Am Griff ziehen':'Drag handle',
+    'Favorit {name} zum Sortieren ziehen':'Drag favorite {name} to reorder',
     'Noch keine Favoriten. Lege deinen ersten Favoriten an.':'No favorites yet. Create your first favorite.',
     'Standard':'Default','Favorit hinzufügen':'Add favorite',
     'Gruppe nach oben':'Move group up','Gruppe nach unten':'Move group down',
@@ -82,13 +84,13 @@
     'Tastatursteuerung':'Keyboard shortcuts','Timer-Eingabe fokussieren':'Focus timer input',
     'Timer oder Favorit starten':'Start timer or favorite',
     'Favorit über die Eingabe starten':'Start favorite from the input',
-    'Eingabe leeren; sonst Timer auswählen / zur Eingabe zurück':'Clear input; otherwise select a timer / return to input',
+    'Eingabe leeren; sonst Fokus verlassen / zur Eingabe zurück':'Clear input; otherwise leave focus / return to input',
     'Zwischen angezeigten Timern wechseln':'Switch between displayed timers',
     'Angezeigten Timer pausieren/fortsetzen':'Pause/resume displayed timer',
     'Angezeigten Timer beenden (mit Bestätigung)':'Stop displayed timer (with confirmation)',
     'Diese Hilfe öffnen':'Open this help',
-    'Buchstaben-Shortcuts funktionieren außerhalb von Textfeldern. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert weiterhin zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.':
-      'Letter shortcuts work outside text fields. Esc works anywhere outside dialogs; Tab continues to navigate controls. In confirmation dialogs, ← / → selects an action.',
+    'Shortcuts und Pfeiltasten funktionieren außerhalb von Textfeldern und Dialogen. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.':
+      'Shortcuts and arrow keys work outside text fields and dialogs. Esc works anywhere outside dialogs; Tab navigates between controls. In confirmation dialogs, ← / → selects an action.',
     // Dynamic status and validation (including errors from browser-only storage)
     'Speichere Reihenfolge …':'Saving order …','Reihenfolge gespeichert.':'Order saved.',
     'Speichere Gruppenreihenfolge …':'Saving group order …','Gruppenreihenfolge gespeichert.':'Group order saved.',

@@ -7,10 +7,10 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=37">
-  <script defer src="js/i18n.js?v=37"></script>
-  <script type="module" src="js/app.js?v=37"></script>
-  <script defer src="pwa-update.js?v=37"></script>
+  <link rel="stylesheet" href="styles.css?v=38">
+  <script defer src="js/i18n.js?v=38"></script>
+  <script type="module" src="js/app.js?v=38"></script>
+  <script defer src="pwa-update.js?v=38"></script>
 </head>
 <body>
 <main class="shell">
@@ -21,7 +21,7 @@
 
   <div id="pwa-update-banner" class="pwa-update-banner" role="status" hidden><div><strong>Eine neue Version von NextTimer ist verfügbar.</strong><span>Aktualisieren, wenn du bereit bist. Laufende lokale Timer bleiben gespeichert.</span></div><div class="update-actions"><button type="button" id="pwa-update-later">Später</button><button type="button" id="pwa-update-now" class="primary-button">Aktualisieren</button></div></div>
   <section id="alarm-banner" class="alarm-banner" role="region" aria-label="Abgelaufene Timer" hidden>
-    <div class="alarm-banner-head"><strong>Timer abgelaufen <span id="alarm-count"></span></strong><button type="button" id="alarm-ack-all" hidden>Alle bestätigen</button></div>
+    <div class="alarm-banner-head"><div class="alarm-heading"><span class="alarm-mark" aria-hidden="true">◷</span><strong>Abgelaufene Timer <span id="alarm-count"></span></strong></div><button type="button" id="alarm-ack-all" hidden>Alle bestätigen</button></div>
     <div id="alarm-list" class="alarm-list" aria-live="polite"></div>
   </section>
   <section class="panel quick-panel" aria-labelledby="quick-title">
@@ -86,7 +86,6 @@
       <div><h2 id="fav-title">Favoriten <span class="count" id="fav-count">0</span></h2><p class="subtle" id="fav-hint" hidden></p></div>
       <div class="fav-header-actions"><button type="button" id="new-favorite" class="primary-button">＋ Favorit</button><button type="button" id="sort-toggle" class="secondary-button" aria-pressed="false">✎ Bearbeiten</button></div>
     </div>
-    <div class="sort-info" id="sort-info" hidden>Favoriten bearbeiten, löschen oder innerhalb ihrer Gruppe umsortieren. Die Reihenfolge wird automatisch gespeichert.</div>
     <div class="favorites" id="favorites"></div>
     <div class="sort-status" id="sort-status" role="status" aria-live="polite"></div>
   </section>
@@ -159,7 +158,7 @@
   </dialog>
   <dialog id="shortcuts-dialog" class="edit-dialog shortcuts-dialog" aria-labelledby="shortcuts-title">
     <div class="dialog-heading"><h2 id="shortcuts-title">Tastatursteuerung</h2><button type="button" class="dialog-close" data-close-dialog="shortcuts-dialog" aria-label="Schließen">×</button></div>
-    <div class="dialog-scroll"><dl class="shortcut-list"><div><dt><kbd>N</kbd></dt><dd>Timer-Eingabe fokussieren</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Timer oder Favorit starten</dd></div><div><dt><kbd>#1</kbd>–<kbd>#0</kbd></dt><dd>Favorit über die Eingabe starten</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Eingabe leeren; sonst Timer auswählen / zur Eingabe zurück</dd></div><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Zwischen angezeigten Timern wechseln</dd></div><div><dt><kbd>P</kbd></dt><dd>Angezeigten Timer pausieren/fortsetzen</dd></div><div><dt><kbd>S</kbd></dt><dd>Angezeigten Timer beenden (mit Bestätigung)</dd></div><div><dt><kbd>?</kbd></dt><dd>Diese Hilfe öffnen</dd></div></dl><p class="subtle">Buchstaben-Shortcuts funktionieren außerhalb von Textfeldern. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert weiterhin zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.</p></div>
+    <div class="dialog-scroll"><dl class="shortcut-list"><div><dt><kbd>N</kbd></dt><dd>Timer-Eingabe fokussieren</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Timer oder Favorit starten</dd></div><div><dt><kbd>#1</kbd>–<kbd>#0</kbd></dt><dd>Favorit über die Eingabe starten</dd></div><div><dt><kbd>Esc</kbd></dt><dd>Eingabe leeren; sonst Fokus verlassen / zur Eingabe zurück</dd></div><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Zwischen angezeigten Timern wechseln</dd></div><div><dt><kbd>P</kbd></dt><dd>Angezeigten Timer pausieren/fortsetzen</dd></div><div><dt><kbd>S</kbd></dt><dd>Angezeigten Timer beenden (mit Bestätigung)</dd></div><div><dt><kbd>?</kbd></dt><dd>Diese Hilfe öffnen</dd></div></dl><p class="subtle">Shortcuts und Pfeiltasten funktionieren außerhalb von Textfeldern und Dialogen. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.</p></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="shortcuts-dialog">Schließen</button></div>
   </dialog>
 </main>
