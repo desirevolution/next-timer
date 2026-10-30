@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=38';
-import {createStandaloneAPI} from './standalone-store.js?v=38';
-import {LocalTimers} from './local-timers.js?v=38';
-import {parseQuickTimer} from './quick-timer.js?v=38';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=38';
+import {enableFavoriteSorting} from './favorite-sort.js?v=39';
+import {createStandaloneAPI} from './standalone-store.js?v=39';
+import {LocalTimers} from './local-timers.js?v=39';
+import {parseQuickTimer} from './quick-timer.js?v=39';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=39';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -82,13 +82,8 @@ function selectTimer(offset) {
 function drawFocus(){
   const focus=focusTimer();
   const timers=navigableTimers();
-  // The empty main display is information, not a selectable timer. Make it
-  // genuinely inert (including pointer and programmatic focus), but preserve
-  // keyboard access when a paused timer is available to resume.
-  const panel=$('focus-panel');
-  panel.inert=!focus;
-  if(focus) panel.tabIndex=0;
-  else panel.removeAttribute('tabindex');
+  // The timer display is informational, never a focusable control.
+  // Its navigation and action buttons remain individually focusable.
   $('head-status').textContent=focus?(focus.status==='paused'?'Pausiert':focus.local&&!STANDALONE?'Lokal · läuft':'Läuft'):'Bereit';
   const index=focus?timers.findIndex(t=>t.id===focus.id):-1;
   $('focus-position').textContent=focus?`${index+1} von ${timers.length}`:'';
@@ -525,7 +520,7 @@ document.addEventListener('click',e=>{
   const button=e.target.closest('button[data-action]');
   if(!button)return;
   const {action,id}=button.dataset;
-  if(action==='show-timer') {manualFocusID=id;draw();$('focus-panel').focus();return;}
+  if(action==='show-timer') {manualFocusID=id;draw();return;}
   if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
   if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}

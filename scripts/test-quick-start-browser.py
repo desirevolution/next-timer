@@ -63,7 +63,7 @@ with sync_playwright() as pw:
         field.fill('bad input');field.press('Enter')
         assert page.locator('#quick-error').inner_text()
         assert page.locator('#hero-name').inner_text()=='Noch kein Timer aktiv'
-        assert page.locator('#focus-panel').evaluate('el=>el.inert && !el.hasAttribute("tabindex")')
+        assert page.locator('#focus-panel').evaluate('el=>!el.hasAttribute("tabindex") && !el.inert')
         field.press('Escape')
         assert field.input_value()==''
         assert page.locator('#quick-error').inner_text()==''

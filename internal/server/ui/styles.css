@@ -210,7 +210,6 @@ select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .quick-hint{margin-top:7px}
 .focus-heading-meta{display:flex;gap:9px;align-items:center}
 .focus-position{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.focus-panel:focus{outline:2px solid var(--accent);outline-offset:3px}
 .focus-carousel{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0}
 .focus-timer-content{flex:1 1 0;min-width:0}
 .focus-arrow{flex:0 0 38px;min-width:38px;min-height:52px;font-size:2rem;background:transparent;border-color:transparent;color:var(--muted);padding:0 4px;line-height:1}

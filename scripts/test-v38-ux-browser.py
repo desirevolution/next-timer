@@ -56,6 +56,17 @@ with sync_playwright() as pw:
         field.fill('8m Zwei');field.press('Enter')
         page.wait_for_function('document.querySelector("#hero-name").textContent==="Zwei"')
         page.wait_for_function('document.activeElement!==document.querySelector("#quick-input")')
+        # The display is not an interactive control; clicking its title must not
+        # focus it or create an accent outline. Buttons inside still work.
+        panel=page.locator('#focus-panel')
+        assert panel.get_attribute('tabindex') is None
+        page.locator('#hero-name').click()
+        assert not panel.evaluate('el=>el===document.activeElement')
+        assert panel.evaluate('el=>getComputedStyle(el).outlineStyle')=='none'
+        page.locator('#focus-previous').click()
+        assert page.locator('#hero-name').inner_text()=='Eins'
+        page.locator('#focus-next').click()
+        assert page.locator('#hero-name').inner_text()=='Zwei'
         # A different button has focus: arrows globally change the display.
         page.locator('#sort-toggle').focus()
         page.keyboard.press('ArrowLeft')

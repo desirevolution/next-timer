@@ -120,12 +120,12 @@ with sync_playwright() as pw:
         assert page.locator('#hero-name').inner_text()=='Acht'
         page.locator('#focus-next').click()
         assert page.locator('#hero-name').inner_text()=='Tee'
-        page.locator('#focus-panel').focus()
+        page.locator('#hero-toggle').focus()
         page.keyboard.press('Escape')
         assert page.evaluate('document.activeElement===document.body')
         page.keyboard.press('Escape')
         assert field.evaluate('el=>el===document.activeElement')
-        page.locator('#focus-panel').focus()
+        page.locator('#hero-toggle').focus()
         page.keyboard.press('Shift+/')
         assert page.locator('#shortcuts-dialog').evaluate('el=>el.open')
         page.keyboard.press('Escape')
@@ -155,14 +155,16 @@ with sync_playwright() as pw:
         page.locator('#hero-stop').click();page.locator('#confirm-ok').click()
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Tee'")
         assert page.locator('#head-status').inner_text()=='Pausiert'
-        # A paused timer remains selectable and keyboard-controllable.
-        assert not page.locator('#focus-panel').evaluate('el=>el.inert')
-        assert page.locator('#focus-panel').get_attribute('tabindex')=='0'
+        # A paused timer remains controllable, but the display itself is never focusable.
+        assert page.locator('#focus-panel').get_attribute('tabindex') is None
+        page.locator('#focus-panel').evaluate('el=>el.focus()')
+        assert not page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
+        assert page.locator('#hero-toggle').is_enabled()
         page.locator('#hero-stop').click();page.locator('#confirm-ok').click()
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Noch kein Timer aktiv'")
-        # With no active or paused timers the empty panel is not interactive.
-        assert page.locator('#focus-panel').evaluate('el=>el.inert')
+        # With no active or paused timers the empty display stays informational.
         assert page.locator('#focus-panel').get_attribute('tabindex') is None
+        assert page.locator('#hero-controls').is_hidden()
         page.locator('#focus-panel').evaluate('el=>el.focus()')
         assert not page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
         if width==375:
