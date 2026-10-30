@@ -2,7 +2,7 @@
 
 A small countdown timer service with a web interface and a terminal client.
 
-Run multiple timers, save frequently used durations as favorites, and control timers from a browser or the command line. The timer due to finish next is shown as the main timer.
+Run multiple timers, save frequently used durations as favorites, and control timers from a browser or the command line. The main view automatically shows the timer due to finish next, until you select a different running or paused timer.
 
 The project provides two programs:
 
@@ -33,7 +33,25 @@ Both Compose files use the same settings and persistent Docker volume. Use one o
 
 ## Web app
 
-The web app lets you start and control timers, save favorites, and arrange favorites into groups. Groups can be reordered in edit mode. Favorite names must be unique within a group, but can be reused in different groups. It can also be installed as a PWA.
+The web app lets you start and control timers, save favorites, and arrange favorites into groups. The interface is available in English and German: Settings → Language (below Data & backup) offers Automatic (browser language), Deutsch and English. The selection is saved locally and applied without reloading timers. Groups can be reordered in edit mode. Favorite names must be unique within a group, but can be reused in different groups. It can also be installed as a PWA.
+
+When no running or paused timer exists, the empty main timer view cannot be focused or selected. A paused timer remains selectable so it can be resumed. Use the left/right arrows in the main timer view to switch between timers (the position indicator shows which one is selected). A manually selected timer stays visible even while paused; when it stops or finishes, the display returns to the soonest-running timer, or to the first paused timer if all are paused. Clicking **Anzeigen** in the additional-timers list selects that timer too. Stopping any timer asks for confirmation.
+
+### Keyboard controls
+
+The timer entry is focused automatically on desktop, but ordinary Tab navigation stays available. The **⌨** button opens a shortcut reference.
+
+| Keys | Action |
+| --- | --- |
+| `Enter` in the entry | Start a timer (e.g. `5m Tea`) or an assigned favorite (e.g. `#1`) |
+| `N` | Focus the timer entry from anywhere outside a form/dialog |
+| `Esc` | Clear the focused timer entry (if filled); otherwise focus the timer view from any control, or return from the timer view to the entry. In an open dialog, close/cancel it |
+| `←` / `→` in the timer view | Switch to the previous/next timer (wrap around) |
+| `P` outside form fields | Pause/resume only the displayed timer |
+| `S` outside form fields | Ask to stop only the displayed timer |
+| `?` outside form fields | Open shortcut help |
+
+Each favorite can have one optional, unique `#1`–`#0` assignment, set in its edit form. Assignments remain fixed through favorite reordering and are stored with favorite data (including browser-only backups). Only confirmation dialogs (stop timer, delete favorite, restore backup) use `←` and `→` to focus **Cancel** and **Confirm** respectively; `Enter` activates the focused button, `Esc` cancels. Arrows in edit/settings forms keep their usual cursor and control behavior. Normal text-entry keys are never captured for shortcuts while typing. On mobile the input is **not** auto-focused; dialog action buttons are kept above the software keyboard.
 
 Timers marked **Browser only** run locally and do not use the server, AWTRIX, or the webhook. Browser notifications are available when permitted, but a local timer cannot guarantee an alarm while the app is closed.
 

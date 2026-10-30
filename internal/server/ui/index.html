@@ -7,9 +7,10 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=35">
-  <script type="module" src="js/app.js?v=35"></script>
-  <script defer src="pwa-update.js?v=35"></script>
+  <link rel="stylesheet" href="styles.css?v=37">
+  <script defer src="js/i18n.js?v=37"></script>
+  <script type="module" src="js/app.js?v=37"></script>
+  <script defer src="pwa-update.js?v=37"></script>
 </head>
 <body>
 <main class="shell">
@@ -27,7 +28,7 @@
     <form id="quick-form" novalidate>
       <h2 id="quick-title">Neuer Timer</h2>
       <div class="quick-row">
-        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder #1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error quick-hint">
+        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder #1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
         <button id="quick-start" class="primary-button" type="submit" disabled>▶ Start</button>
       </div>
       <div class="quick-presets" aria-label="Dauer vorgeben">
@@ -37,7 +38,6 @@
         <button type="button" data-quick-duration="10m">10m</button>
         <button type="button" data-quick-duration="25m">25m</button>
       </div>
-      <p id="quick-hint" class="quick-hint">Favoriten mit #1–#0 starten · Esc: Eingabe leeren / Timer auswählen</p>
       <p id="quick-error" class="quick-error" role="alert" aria-live="polite"></p>
       <details id="quick-options" class="quick-options"><summary>Optionen</summary>
         <fieldset class="timer-options"><legend>Timer</legend>
@@ -56,7 +56,7 @@
       </details>
     </form>
   </section>
-  <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel" tabindex="-1">
+  <section class="panel focus-panel" aria-labelledby="focus-title" id="focus-panel" inert>
     <div class="heading"><h2 id="focus-title">Timer</h2><div class="focus-heading-meta"><span class="focus-position" id="focus-position" aria-live="polite"></span><span class="pill" id="head-status">Bereit</span></div></div>
     <div class="focus-layout">
       <div class="focus-readout">
@@ -69,7 +69,6 @@
           <button type="button" id="focus-next" class="focus-arrow" aria-label="Nächsten Timer anzeigen" title="Nächster Timer (→)" hidden>›</button>
         </div>
         <div class="progress"><div class="bar" role="progressbar" aria-label="Fortschritt des Haupttimers" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="hero-progress"><div id="hero-bar"></div></div></div>
-        <p class="focus-keyboard-hint" id="focus-keyboard-hint" hidden>← → Timer wechseln · P Pause/Weiter · S Beenden · N Eingabe</p>
       </div>
       <div class="hero-controls" id="hero-controls" hidden>
         <div class="control-trio">
@@ -111,6 +110,11 @@
       <p class="subtle">Töne benötigen eine geöffnete App. Systembenachrichtigungen benötigen eine Browserfreigabe.</p>
     </details>
     <section class="settings-section" id="backup-settings" hidden></section>
+    <section class="settings-section language-settings"><h3>Sprache</h3>
+      <label for="language-select">Sprache der Oberfläche</label>
+      <select id="language-select"><option value="auto">Automatisch</option><option value="de">Deutsch</option><option value="en">Englisch</option></select>
+      <p class="subtle">Automatisch verwendet die Browsersprache. Diese Einstellung gilt nur für diesen Browser.</p>
+    </section>
     <details class="settings-section"><summary>App &amp; Offline</summary><p class="subtle">PWA-Update, Offline-Betrieb und Reparatur.</p><p><a href="pwa-repair.html" id="settings-repair-link" class="settings-link">PWA-Cache reparieren</a></p></details></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" data-close-dialog="settings-dialog">Schließen</button></div>
   </dialog>

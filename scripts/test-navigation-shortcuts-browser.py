@@ -53,7 +53,7 @@ with sync_playwright() as pw:
         page.wait_for_timeout(25)
         field.fill('2m Zwei');field.press('Enter')
         page.wait_for_function("document.querySelector('#timer-count').textContent==='2'")
-        assert page.locator('#hero-name').inner_text()=='Zwei'  # automatic: soonest first
+        assert page.locator('#hero-name').inner_text()=='Zwei'  # explicitly just started
         assert page.locator('#focus-position').inner_text()=='3 von 3'
         # Escape is global on the main screen, even with focus on a favorite,
         # other button or one of the advanced new-timer controls.
@@ -153,8 +153,16 @@ with sync_playwright() as pw:
         page.locator('#hero-stop').click();page.locator('#confirm-ok').click()
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Tee'")
         assert page.locator('#head-status').inner_text()=='Pausiert'
+        # A paused timer remains selectable and keyboard-controllable.
+        assert not page.locator('#focus-panel').evaluate('el=>el.inert')
+        assert page.locator('#focus-panel').get_attribute('tabindex')=='0'
         page.locator('#hero-stop').click();page.locator('#confirm-ok').click()
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Noch kein Timer aktiv'")
+        # With no active or paused timers the empty panel is not interactive.
+        assert page.locator('#focus-panel').evaluate('el=>el.inert')
+        assert page.locator('#focus-panel').get_attribute('tabindex') is None
+        page.locator('#focus-panel').evaluate('el=>el.focus()')
+        assert not page.locator('#focus-panel').evaluate('el=>el===document.activeElement')
         if width==375:
             # Simulate Android's shrunken visible viewport when keyboard opens.
             for opener,footer in [('#new-favorite','#favorite-dialog .dialog-footer'),('#open-settings','#settings-dialog .dialog-footer')]:

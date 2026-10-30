@@ -63,6 +63,7 @@ with sync_playwright() as pw:
         field.fill('bad input');field.press('Enter')
         assert page.locator('#quick-error').inner_text()
         assert page.locator('#hero-name').inner_text()=='Noch kein Timer aktiv'
+        assert page.locator('#focus-panel').evaluate('el=>el.inert && !el.hasAttribute("tabindex")')
         field.press('Escape')
         assert field.input_value()==''
         assert page.locator('#quick-error').inner_text()==''
@@ -76,8 +77,8 @@ with sync_playwright() as pw:
         assert page.locator('#quick-start').is_disabled()
         field.fill('2m Kaffee');page.locator('#quick-start').click()
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='1'")
-        assert page.locator('#hero-name').inner_text()=='Tee'
-        assert 'Kaffee' in page.locator('#timers').inner_text()
+        assert page.locator('#hero-name').inner_text()=='Kaffee'
+        assert 'Tee' in page.locator('#timers').inner_text()
         assert field.evaluate('(el)=>el===document.activeElement')==(width==1100), 'Button start focus depends on device'
         # Starting a favorite by mouse returns to the entry; starting it
         # with Enter respects the keyboard user's current button focus.

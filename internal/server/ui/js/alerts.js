@@ -172,7 +172,7 @@ function render() {
   list.innerHTML=pending.map(a=>{
     const needsAck=a.alarm.repeat==='until_ack';
     return `<div class="alarm-item ${a.alarm.visual?'alarm-visible':''} ${a.alarm.visual?'alarm-pulsing':''}" data-alarm-key="${escapeHTML(a.key)}">
-      <span class="alarm-item-name">${escapeHTML(a.name)}</span><span class="alarm-item-state">Abgelaufen</span>
+      <span class="alarm-item-name" data-i18n-ignore>${escapeHTML(a.name)}</span><span class="alarm-item-state">Abgelaufen</span>
       ${needsAck?`<button type="button" data-ack="${escapeHTML(a.key)}">Bestätigen</button>`:''}
     </div>`;
   }).join('');

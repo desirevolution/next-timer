@@ -1,11 +1,12 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=35';
-import {createStandaloneAPI} from './standalone-store.js?v=35';
-import {LocalTimers} from './local-timers.js?v=35';
-import {parseQuickTimer} from './quick-timer.js?v=35';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=35';
+import {enableFavoriteSorting} from './favorite-sort.js?v=37';
+import {createStandaloneAPI} from './standalone-store.js?v=37';
+import {LocalTimers} from './local-timers.js?v=37';
+import {parseQuickTimer} from './quick-timer.js?v=37';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=37';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
+const L = (text, args={}) => window.NextTimerI18n?.t(text, args) ?? text.replace(/\{(\w+)\}/g,(_,key)=>String(args[key]??''));
 let standaloneStore;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmt = ms => {
@@ -81,11 +82,18 @@ function selectTimer(offset) {
 function drawFocus(){
   const focus=focusTimer();
   const timers=navigableTimers();
+  // The empty main display is information, not a selectable timer. Make it
+  // genuinely inert (including pointer and programmatic focus), but preserve
+  // keyboard access when a paused timer is available to resume.
+  const panel=$('focus-panel');
+  panel.inert=!focus;
+  if(focus) panel.tabIndex=0;
+  else panel.removeAttribute('tabindex');
   $('head-status').textContent=focus?(focus.status==='paused'?'Pausiert':focus.local&&!STANDALONE?'Lokal · läuft':'Läuft'):'Bereit';
   const index=focus?timers.findIndex(t=>t.id===focus.id):-1;
   $('focus-position').textContent=focus?`${index+1} von ${timers.length}`:'';
   $('focus-previous').hidden=$('focus-next').hidden=timers.length<2;
-  $('focus-keyboard-hint').hidden=!focus;
+  $('hero-name').toggleAttribute('data-i18n-ignore',!!focus);
   $('hero-name').textContent=focus?focus.name:'Noch kein Timer aktiv';
   $('hero-origin').hidden=STANDALONE||!focus?.local;
   $('hero-controls').hidden=!focus;
@@ -117,9 +125,9 @@ function favoriteGroups() {
     {name:'',items:favs.filter(f=>!groupOf(f))}].filter(g=>g.items.length);
 }
 function favoriteCard(fav){
-  const badge=fav.shortcut?`<span class="favorite-shortcut" title="Mit #${esc(fav.shortcut)} in der Eingabe starten">#${esc(fav.shortcut)}</span>`:'';
-  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}${fav.shortcut?', Schnellstart #'+esc(fav.shortcut):''}, starten"><span class="fav-name">${esc(fav.name)}</span>${badge}<span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
-  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name">${esc(fav.name)} ${badge}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
+  const badge=fav.shortcut?`<span class="favorite-shortcut" title="${esc(L('Mit #{number} in der Eingabe starten',{number:fav.shortcut}))}">#${esc(fav.shortcut)}</span>`:'';
+  if(!sorting)return `<article class="fav-card" data-id="${esc(fav.id)}"><button class="fav-start" type="button" data-action="start-fav" data-id="${esc(fav.id)}" aria-label="${esc(fav.name)}, ${esc(durationLabel(fav.duration))}${fav.shortcut?', Schnellstart #'+esc(fav.shortcut):''}, starten"><span class="fav-name" data-i18n-ignore>${esc(fav.name)}</span>${badge}<span class="fav-duration">${esc(durationLabel(fav.duration))}</span>${fav.browser_only&&!STANDALONE?'<span class="fav-local">Nur Browser</span>':''}</button></article>`;
+  return `<article class="fav-card" data-id="${esc(fav.id)}"><div class="sort-main"><button type="button" class="drag-handle" aria-label="${esc(fav.name)} innerhalb der Gruppe ziehen" title="In der Gruppe verschieben">⠿</button><div><div class="sort-name"><span data-i18n-ignore>${esc(fav.name)}</span> ${badge}</div><div class="sort-duration">${esc(durationLabel(fav.duration))}${fav.browser_only&&!STANDALONE?' · Lokal':''}</div></div></div><div class="sort-actions">${button('fav-up','↑',fav.id,'Innerhalb der Gruppe zurück')}${button('fav-down','↓',fav.id,'Innerhalb der Gruppe vor')}${button('edit-fav','✎',fav.id,'Favorit bearbeiten')}${button('delete-fav','×',fav.id,'Favorit löschen','delete')}</div></article>`;
 }
 function drawFavorites(force=false){
   const favs=current.templates||[];
@@ -136,7 +144,7 @@ function drawFavorites(force=false){
   $('fav-hint').textContent=sorting?'Vorlagen bearbeiten und innerhalb der Gruppen sortieren':'';
   const groups=favoriteGroups(), headings=groups.some(g=>g.name!=='');
   $('favorites').innerHTML=favs.length?groups.map(g=>`<section class="favorite-group" data-group="${esc(g.name)}" aria-label="${esc(g.name||'Standard')}">
-    ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="new-fav-group" data-group="${esc(g.name)}" aria-label="Favorit in Gruppe ${esc(g.name)} hinzufügen" title="Favorit hinzufügen">＋</button><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
+    ${headings?`<div class="favorite-group-heading"><div class="group-label"><h3 ${g.name?'data-i18n-ignore':''}>${esc(g.name||'Standard')}</h3><span class="group-count">${g.items.length}</span></div><span class="group-rule" aria-hidden="true"></span>${sorting&&g.name?`<div class="group-actions"><button type="button" data-action="new-fav-group" data-group="${esc(g.name)}" aria-label="Favorit in Gruppe ${esc(g.name)} hinzufügen" title="Favorit hinzufügen">＋</button><button type="button" data-action="group-up" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach oben" title="Gruppe nach oben" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===0?'disabled':''}>↑</button><button type="button" data-action="group-down" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} nach unten" title="Gruppe nach unten" ${groups.filter(x=>x.name).findIndex(x=>x.name===g.name)===groups.filter(x=>x.name).length-1?'disabled':''}>↓</button><button type="button" class="group-rename-button" data-action="rename-group" data-group="${esc(g.name)}" aria-label="Gruppe ${esc(g.name)} umbenennen">✎ Umbenennen</button></div>`:''}</div>`:''}
     <div class="favorites-grid">${g.items.map(favoriteCard).join('')}</div></section>`).join(''):'<p class="empty">Noch keine Favoriten. Lege deinen ersten Favoriten an.</p>';
   if(sorting)for(const group of $('favorites').querySelectorAll('.favorite-group')){
     const cards=[...group.querySelectorAll('.fav-card')];
@@ -154,7 +162,7 @@ function renderGroupPicks() {
   for (const prefix of ['edit']) {
     const field=$(prefix+'-group'), container=$(prefix+'-group-quick');
     container.hidden=groups.length===0;
-    container.innerHTML=groups.map(name=>`<button type="button" class="group-quick-button" data-group-choice="${esc(prefix)}" data-group-name="${esc(name)}" aria-pressed="${String(field.value.trim().toLocaleLowerCase()===name.toLocaleLowerCase())}">${esc(name)}</button>`).join('');
+    container.innerHTML=groups.map(name=>`<button type="button" class="group-quick-button" data-group-choice="${esc(prefix)}" data-group-name="${esc(name)}" aria-pressed="${String(field.value.trim().toLocaleLowerCase()===name.toLocaleLowerCase())}" data-i18n-ignore>${esc(name)}</button>`).join('');
   }
 }
 function highlightGroupPicks(prefix) {
@@ -174,7 +182,7 @@ function drawOthers(){
   const key=JSON.stringify(timers);
   if(key===renderedTimerKey)return;
   renderedTimerKey=key;
-  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><button type="button" class="timer-show" data-action="show-timer" data-id="${esc(t.id)}" title="Diesen Timer groß anzeigen"><strong>${esc(t.name)}</strong><span class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='paused'?'Pausiert':'Läuft'} · Anzeigen</span></button><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('save-as-favorite','☆',t.id,'Als Favorit speichern','timer-favorite-icon')}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
+  $('timers').innerHTML=timers.length?timers.map(t=>`<div class="timer-row"><button type="button" class="timer-show" data-action="show-timer" data-id="${esc(t.id)}" title="Diesen Timer groß anzeigen"><strong data-i18n-ignore>${esc(t.name)}</strong><span class="timer-meta">${t.local&&!STANDALONE?'Nur in diesem Browser · ':''}${t.status==='paused'?'Pausiert':'Läuft'} · Anzeigen</span></button><div class="timer-right"><span class="remaining" data-time="${esc(t.id)}">${fmt(remaining(t))}</span>${t.status==='running'?button('pause','Ⅱ',t.id,'Pausieren'):t.status==='paused'?button('resume','▶',t.id,'Fortsetzen'):''}${t.status!=='finished'?button('adjust','+1m',t.id,'Eine Minute hinzufügen'):''}${button('save-as-favorite','☆',t.id,'Als Favorit speichern','timer-favorite-icon')}${button('stop','×',t.id,'Timer beenden','danger')}</div></div>`).join(''):'<p class="empty">Keine weiteren Timer.</p>';
 }
 function draw(){drawFocus();drawFavorites();drawOthers();}
 async function commitOrder(ids){
@@ -276,12 +284,23 @@ for (const prefix of ['timer-','edit-','global-']) $(prefix+'volume').addEventLi
   $(prefix+'volume-label').value=`${$(prefix+'volume').value} %`;
 });
 showGlobalDefaults();profileForm('timer-');profileForm('edit-');
-function startTimer(duration,name,templateId,options={}){
+async function startTimer(duration,name,templateId,options={}){
   const fav=templateId?(current.templates||[]).find(f=>f.id===templateId):null;
   if(templateId&&!fav) throw Error('Favorit nicht gefunden.');
   const config=fav?{browser_only:STANDALONE||!!fav.browser_only,notify:fav.notify!==false,sound:fav.sound!==false,alarm:fav.alarm??null}:{...options,browser_only:STANDALONE||!!options.browser_only};
-  if(config.browser_only) return localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config);
-  return api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
+  const started=config.browser_only
+    ? localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config)
+    : await api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
+  // An intentional new start must take precedence over an older pinned timer,
+  // including a paused one. Do not override manual navigation afterwards.
+  if(started?.id) {
+    if(!config.browser_only) await reload().catch(()=>{});
+    if((current.timers||[]).some(timer=>timer.id===started.id)) {
+      manualFocusID=started.id;
+      draw();
+    }
+  }
+  return started;
 }
 // Quick start is a separate, one-line path. The advanced form remains available
 // for per-timer alarm settings and saving a favorite.
@@ -487,7 +506,7 @@ $('sort-toggle').addEventListener('click',()=>{
 function confirmStop(id) {
   const timer=(current.timers||[]).find(t=>t.id===id && (t.status==='running'||t.status==='paused'));
   if(!timer)return;
-  confirmAction({title:'Timer beenden?',description:`„${timer.name}“ (${fmt(remaining(timer))} verbleibend) wirklich beenden?`,label:'Timer beenden',
+  confirmAction({title:'Timer beenden?',description:L('„{name}“ ({time} verbleibend) wirklich beenden?',{name:timer.name,time:fmt(remaining(timer))}),label:'Timer beenden',
     run:()=>perform(()=>timerControl(id,'stop'))});
 }
 // Esc works across the main screen, including buttons, favorites and the
@@ -553,7 +572,7 @@ document.addEventListener('click',e=>{
   }
   if(action==='delete-fav'){
     const fav=(current.templates||[]).find(t=>t.id===id);
-    if(fav)confirmAction({title:'Favorit löschen?',description:`„${fav.name}“ wird dauerhaft gelöscht.`,label:'Löschen',run:()=>perform(()=>api('/templates/'+encodeURIComponent(id),'DELETE'))});
+    if(fav)confirmAction({title:'Favorit löschen?',description:L('„{name}“ wird dauerhaft gelöscht.',{name:fav.name}),label:'Löschen',run:()=>perform(()=>api('/templates/'+encodeURIComponent(id),'DELETE'))});
     return;
   }
   if(action==='save-as-favorite'){

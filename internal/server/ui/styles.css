@@ -251,3 +251,14 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
 /* Arrow-key instructions are only relevant for physical-keyboard users. */
 .confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:none;margin:0 0 10px;color:var(--muted);font-size:.78rem}
 @media(hover:hover) and (pointer:fine){.confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:block}}
+
+/* Symmetric favorite editor insets: avoid permanent scrollbar gutters,
+   which clipped the right-hand borders of fields on desktop browsers. */
+#favorite-dialog .dialog-main {
+  padding: 6px 10px 12px;
+  scrollbar-gutter: auto;
+}
+#favorite-dialog .dialog-field > input:focus-visible,
+#favorite-dialog .dialog-field > select:focus-visible { outline-offset: 1px; }
+.language-settings select { width: 100%; max-width: 280px; min-height: 44px; }
+.language-settings label { margin-top: 10px; }
