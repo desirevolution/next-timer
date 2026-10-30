@@ -1,8 +1,8 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=34';
-import {createStandaloneAPI} from './standalone-store.js?v=34';
-import {LocalTimers} from './local-timers.js?v=34';
-import {parseQuickTimer} from './quick-timer.js?v=34';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=34';
+import {enableFavoriteSorting} from './favorite-sort.js?v=35';
+import {createStandaloneAPI} from './standalone-store.js?v=35';
+import {LocalTimers} from './local-timers.js?v=35';
+import {parseQuickTimer} from './quick-timer.js?v=35';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=35';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -594,8 +594,6 @@ updateNotificationButton();
 localTimers=new LocalTimers(combine,t=>alertFinished(t));
 if(STANDALONE){
   standaloneStore=createStandaloneAPI(()=>reload().catch(console.warn));
-  $('connect').textContent='Nur Browser';
-  $('live').classList.remove('off');
   $('timer-browser-only').checked=true;
   $('edit-browser-only').checked=true;
 }

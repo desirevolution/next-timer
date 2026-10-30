@@ -48,7 +48,8 @@ with sync_playwright() as pw:
         page.set_content(html)
         page.evaluate("""() => {const d=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>d.has(k)?d.get(k):null,setItem:(k,v)=>d.set(k,''+v),removeItem:k=>d.delete(k),clear:()=>d.clear()}});}""")
         page.add_script_tag(content=browser_bundle())
-        page.wait_for_function("document.querySelector('#connect')?.textContent==='Nur Browser'")
+        page.wait_for_function("document.querySelector('#quick-input') && document.querySelector('#standalone-export')")
+        assert page.locator('.connection').count()==0
         field=page.locator('#quick-input')
         assert field.input_value()==''
         assert page.locator('#quick-start').is_disabled()

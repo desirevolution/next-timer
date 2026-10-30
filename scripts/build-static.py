@@ -59,7 +59,11 @@ def build(destination:Path,version:str)->None:
                   '<input id="timer-browser-only" type="checkbox" checked hidden>', page, count=1)
     page = re.sub(r'<details class="dialog-optional" id="favorite-more-options">.*?<input id="edit-browser-only"[^>]*>\s*</details>',
                   '<input id="edit-browser-only" type="checkbox" checked hidden>', page, count=1, flags=re.S)
-    page=page.replace('Verbinde …','Nur Browser')
+    # A standalone install has no server connection to report. Remove the
+    # entire status item (including its dot) rather than showing "Nur Browser".
+    # Keep the source header untouched so the server build retains its state.
+    page, count = re.subn(r'<div class="connection" aria-live="polite">.*?</div>', '', page, count=1, flags=re.S)
+    if count != 1: raise ValueError('Missing server connection indicator')
     # Keep backup tools inside Settings, not permanently on the start page.
     backup='''<section class="settings-section" id="backup-settings"><h3>Daten &amp; Sicherung</h3>
       <p class="subtle">Favoriten und lokale Timer liegen nur in diesem Browser.</p>
@@ -74,14 +78,14 @@ def build(destination:Path,version:str)->None:
     # Tag all asset URLs with the build revision so browser/CDN caches cannot
     # mix JS from an older deployment with a new HTML shell.
     for asset in [dest/'index.html',dest/'sw.js',dest/'pwa-update.js',*(dest/'js').glob('*.js')]:
-        content = asset.read_text().replace('?v=34',f'?v={version}')
+        content = asset.read_text().replace('?v=35',f'?v={version}')
         # The manifest URL changes on each build to avoid stale install
         # metadata in browsers/CDNs. The app identity itself stays stable.
         if asset.name in ('index.html', 'sw.js'):
             content = content.replace('manifest.webmanifest', f'manifest.webmanifest?v={version}')
         asset.write_text(content)
     worker=dest/'sw.js'
-    text=worker.read_text().replace("const VERSION = 'v34';",f"const VERSION = 'static-{version}';")
+    text=worker.read_text().replace("const VERSION = 'v35';",f"const VERSION = 'static-{version}';")
     worker.write_text(text)
     # A repair page outside the SW fetch handler, scoped to this installation.
     (dest/'pwa-repair.html').write_text('''<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

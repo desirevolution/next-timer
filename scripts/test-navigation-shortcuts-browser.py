@@ -18,7 +18,7 @@ with sync_playwright() as pw:
         page.set_content(html)
         page.evaluate("""() => {const d=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>d.get(k)??null,setItem:(k,v)=>d.set(k,''+v),removeItem:k=>d.delete(k)}});}""")
         page.add_script_tag(content=bundle)
-        page.wait_for_function("document.querySelector('#connect').textContent==='Nur Browser'")
+        page.wait_for_function("document.querySelector('#quick-input') && document.querySelector('#standalone-export')")
         page.locator('#new-favorite').click()
         page.locator('#edit-name').fill('Tee')
         # Arrows in editing dialogs must move the caret, not the button focus.
@@ -39,6 +39,7 @@ with sync_playwright() as pw:
         page.locator('#edit-submit').click()
         page.wait_for_function("document.querySelectorAll('.favorite-shortcut').length===2")
         assert sorted(page.locator('.favorite-shortcut').all_text_contents())==['#0','#1']
+        assert page.locator('.connection').count()==0
         field=page.locator('#quick-input')
         field.fill('#1');field.press('Enter')
         page.wait_for_function("document.querySelector('#hero-name').textContent==='Tee'")

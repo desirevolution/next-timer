@@ -21,10 +21,10 @@ with sync_playwright() as pw:
     page.goto(URL,wait_until='load',timeout=20000)
     page.wait_for_timeout(1500)
     print('TITLE',page.title())
-    print('STATUS',page.locator('#connect').inner_text())
+    print('STANDALONE',page.locator('html').get_attribute('data-mode'))
     print('SERVICEWORKER disabled for DOM test')
     assert page.locator('#timer-browser-only').is_hidden()
-    assert page.locator('#connect').inner_text()=='Nur Browser'
+    assert page.locator('.connection').count()==0
     page.locator('#new-favorite').click()
     page.locator('#edit-name').fill('Kaffee')
     page.locator('#edit-duration').fill('15s')

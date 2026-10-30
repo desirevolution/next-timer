@@ -27,6 +27,9 @@ with TemporaryDirectory() as directory:
     # preserving independent identities for installations under subpaths.
     assert 'id' not in manifest
     assert '<title>NextTimer Local</title>' in index
+    assert 'class="connection"' not in index and 'id="connect"' not in index
+    assert 'id="live"' not in index and 'Nur Browser' not in index
+    assert 'class="connection"' in (SOURCE / 'index.html').read_text()
     assert 'name="apple-mobile-web-app-title" content="NextTimer Local"' in index
     assert 'href="manifest.webmanifest?v=test"' in index
     assert "'manifest.webmanifest?v=test'" in (target / 'sw.js').read_text()
