@@ -37,9 +37,11 @@ jobs:
         run: |
           python3 scripts/test-ux-markup.py
           python3 scripts/test-static-manifest.py
+          python3 scripts/test-release-version.py
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-quick-timer.mjs
           node --experimental-default-type=module scripts/test-standalone-store.mjs
+          node scripts/test-recent-timers.mjs
           node --experimental-default-type=module scripts/test-browser-alarms.mjs
           python3 scripts/build-static.py --output dist/static --version ci
           test -f dist/static/pwa-repair.html
@@ -76,13 +78,14 @@ jobs:
         shell: bash
         env:
           ARCH: ${{ matrix.arch }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
           go mod tidy
           mkdir -p release
           for binary in nexttimer nexttimer-server; do
             CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" \
-              go build -trimpath -ldflags='-s -w' \
+              go build -trimpath -ldflags="-s -w -X github.com/desirevolution/next-timer/internal/server.AppVersion=$RELEASE_TAG" \
               -o "release/$binary" "./cmd/$binary"
             tar -czf "${binary}-linux-${ARCH}.tar.gz" -C release "$binary"
           done
@@ -110,6 +113,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: |
+            NEXTTIMER_VERSION=${{ github.event.release.tag_name }}
           platforms: linux/${{ matrix.arch }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=nexttimer-${{ matrix.arch }}

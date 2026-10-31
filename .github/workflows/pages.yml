@@ -1,9 +1,8 @@
 name: Deploy Standalone PWA
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -16,6 +15,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ !github.event.release.prerelease }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -28,14 +28,18 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build browser-only PWA
-        run: python3 scripts/build-static.py --output dist/static --version "${GITHUB_SHA::12}"
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: python3 scripts/build-static.py --output dist/static --version "$RELEASE_TAG"
       - name: Test browser storage and service worker
         run: |
           python3 scripts/test-ux-markup.py
           python3 scripts/test-static-manifest.py
+          python3 scripts/test-release-version.py
           node scripts/test-pwa-worker.cjs
           node --experimental-default-type=module scripts/test-quick-timer.mjs
           node --experimental-default-type=module scripts/test-standalone-store.mjs
+          node scripts/test-recent-timers.mjs
           node --experimental-default-type=module scripts/test-browser-alarms.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
