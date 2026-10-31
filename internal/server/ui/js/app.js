@@ -1,8 +1,9 @@
-import {enableFavoriteSorting} from './favorite-sort.js?v=39';
-import {createStandaloneAPI} from './standalone-store.js?v=39';
-import {LocalTimers} from './local-timers.js?v=39';
-import {parseQuickTimer} from './quick-timer.js?v=39';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=39';
+import {RecentTimers} from './recent-timers.js?v=40';
+import {enableFavoriteSorting} from './favorite-sort.js?v=40';
+import {createStandaloneAPI} from './standalone-store.js?v=40';
+import {LocalTimers} from './local-timers.js?v=40';
+import {parseQuickTimer} from './quick-timer.js?v=40';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=40';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -23,6 +24,8 @@ const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nex
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
 let current = {...serverState}, skew = 0, sorting = false, editID = null, renameGroup = null, localTimers;
 let previousOtherCount = 0;
+const recentTimers = new RecentTimers();
+let recentOpen = false, recentIndex = -1, recentDraft = '', recentChoice = null;
 // null means automatic selection (soonest running timer); otherwise pin the
 // explicitly selected timer until it disappears or finishes.
 let manualFocusID = null;
@@ -46,6 +49,7 @@ function combine() {
   current={...serverState,timers:[...(serverState.timers||[]),...(localTimers?.all()||[])]};
   // The server's focus may differ: local timers are never sent to AWTRIX.
   draw();
+  if(typeof drawRecent==='function')drawRecent();
 }
 function apply(state) {
   serverState=state;
@@ -266,6 +270,13 @@ async function startTimer(duration,name,templateId,options={}){
   const started=config.browser_only
     ? localTimers.start(fav?fav.name:name,fav?fav.duration:duration,config)
     : await api('/timers','POST',fav?{template_id:templateId}:{duration,name,...config});
+  // A successful start is recorded with its own configuration, independent of
+  // future edits or deletion of the originating favorite.
+  // The server saves global starts for all connected clients; only browser-only
+  // starts need to be recorded here in localStorage.
+  if(config.browser_only)recentTimers.add({duration:fav?fav.duration:duration,name:fav?fav.name:name,
+    options:config});
+  drawRecent();
   // An intentional new start must take precedence over an older pinned timer,
   // including a paused one. Do not override manual navigation afterwards.
   if(started?.id) {
@@ -288,6 +299,68 @@ const desktopKeyboard = () => window.matchMedia?.('(hover: hover) and (pointer: 
 function focusQuickInput(force=false) {
   if ((force || desktopKeyboard()) && !document.querySelector('dialog[open]')) quickInput.focus({preventScroll:true});
 }
+function setQuickValue(value) {
+  quickInput.value=value;
+  quickInput.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function recentEntries() {
+  const local=recentTimers.all();
+  if(STANDALONE)return local;
+  const server=(current.recent||[]).map(v=>({duration:v.duration,name:v.name,
+    at:v.started_at_ms-skew,options:{browser_only:false,sound:v.sound,notify:v.notify,alarm:v.alarm||null}}));
+  return [...local,...server].sort((a,b)=>(b.at||0)-(a.at||0))
+    .filter((v,i,all)=>all.findIndex(x=>JSON.stringify([x.duration,x.name,x.options])===JSON.stringify([v.duration,v.name,v.options]))===i).slice(0,5);
+}
+function drawRecent() {
+  const entries=recentEntries();
+  const list=$('recent-list');
+  $('recent-toggle').setAttribute('aria-expanded',String(recentOpen));
+  $('recent-toggle').disabled=!entries.length;
+  $('recent-popover').hidden=!recentOpen||!entries.length;
+  list.innerHTML=entries.map((entry,i)=>`<button type="button" class="recent-entry${recentIndex===i?' selected':''}" data-recent-index="${i}" aria-label="${esc(L('Timer {name} erneut starten',{name:entry.name||durationLabel(entry.duration)}))}"><span class="recent-entry-name" data-i18n-ignore>${esc(entry.name||L('Ohne Namen'))}</span><span class="recent-entry-duration">${esc(durationLabel(entry.duration))}</span><span class="recent-entry-play" aria-hidden="true">▶</span></button>`).join('');
+}
+function closeRecent() {recentOpen=false;drawRecent();}
+function resetRecentSelection(){recentIndex=-1;recentChoice=null;}
+function stepRecent(direction){
+  const entries=recentEntries();
+  if(!entries.length)return false;
+  if(recentIndex===-1){
+    if(quickInput.value.trim())return false;
+    recentDraft=quickInput.value;
+    if(direction>0)return false;
+    recentIndex=0;
+  }else{
+    recentIndex+= direction < 0 ? 1 : -1;
+    if(recentIndex>=entries.length)recentIndex=entries.length-1;
+    if(recentIndex<0){resetRecentSelection();setQuickValue(recentDraft);drawRecent();return true;}
+  }
+  recentChoice=entries[recentIndex];
+  setQuickValue(`${recentChoice.duration}${recentChoice.name?' '+recentChoice.name:''}`);
+  drawRecent();
+  return true;
+}
+$('recent-toggle').addEventListener('click',()=>{recentOpen=!recentOpen;resetRecentSelection();drawRecent();});
+$('recent-list').addEventListener('click',async event=>{
+  const target=event.target.closest('[data-recent-index]');if(!target)return;
+  const entry=recentEntries()[Number(target.dataset.recentIndex)];if(!entry)return;
+  closeRecent();resetRecentSelection();
+  if(await perform(()=>startTimer(entry.duration,entry.name,null,entry.options))){
+    if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
+  }
+});
+$('recent-clear').addEventListener('click',async()=>{
+  recentTimers.clear();
+  if(!STANDALONE){try{await api('/recent','DELETE');await reload();}catch(e){message(e.message,true);}}
+  closeRecent();resetRecentSelection();
+});
+quickInput.addEventListener('keydown',event=>{
+  if(event.isComposing||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+  if((event.key==='ArrowUp'||event.key==='ArrowDown')&&stepRecent(event.key==='ArrowUp'?-1:1))event.preventDefault();
+});
+document.addEventListener('pointerdown',event=>{
+  if(recentOpen&&!event.target.closest('.quick-history'))closeRecent();
+},{passive:true});
+drawRecent();
 let quickPending = false;
 function clearQuickError() {
   quickError.textContent = '';
@@ -295,6 +368,7 @@ function clearQuickError() {
 }
 quickInput.addEventListener('input', () => {
   clearQuickError();
+  if(recentChoice && quickInput.value!==`${recentChoice.duration}${recentChoice.name?' '+recentChoice.name:''}`)resetRecentSelection();
   if (!quickPending) quickButton.disabled = !quickInput.value.trim();
 });
 $('quick-form').addEventListener('submit', async event => {
@@ -322,7 +396,9 @@ $('quick-form').addEventListener('submit', async event => {
   quickButton.disabled = true;
   try {
     if(favoriteID) await startTimer('','',favoriteID);
-    else await startTimer(entry.duration, entry.name, null, formOptions('timer-'));
+    else await startTimer(entry.duration, entry.name, null, recentChoice?recentChoice.options:formOptions('timer-'));
+    resetRecentSelection();
+    closeRecent();
     quickInput.value = '';
     $('quick-options').open = false;
     $('timer-browser-only').checked = STANDALONE;
@@ -341,6 +417,7 @@ $('quick-form').addEventListener('submit', async event => {
   }
 });
 document.querySelectorAll('[data-quick-duration]').forEach(button => button.addEventListener('click', () => {
+  resetRecentSelection();
   quickInput.value = button.dataset.quickDuration;
   quickInput.dispatchEvent(new Event('input', {bubbles:true}));
   quickInput.focus();
@@ -479,7 +556,9 @@ document.addEventListener('keydown',event=>{
      event.altKey || event.ctrlKey || event.metaKey || document.querySelector('dialog[open]')) return;
   if(event.key==='Escape') {
     event.preventDefault();
+    if(recentOpen){closeRecent();event.preventDefault();return;}
     if(event.target===quickInput && (quickInput.value || quickError.textContent)) {
+      resetRecentSelection();
       quickInput.value='';
       quickInput.dispatchEvent(new Event('input',{bubbles:true}));
       return;
@@ -526,7 +605,9 @@ document.addEventListener('click',e=>{
   if(action==='rename-group'){renameGroup=button.dataset.group;$('group-rename').value=renameGroup;$('group-dialog').showModal();$('group-rename').focus();$('group-rename').select();return;}
   if(action==='start-fav'){
     if(!sorting){
-      perform(()=>startTimer('','',id));
+      perform(()=>startTimer('','',id)).then(success=>{
+        if(success && document.activeElement===button)button.blur();
+      });
     }
     return;
   }
@@ -591,7 +672,7 @@ reload().catch(()=>{
 });
 if(STANDALONE){
   $('standalone-export')?.addEventListener('click',()=>{
-    const data=JSON.stringify(standaloneStore.exportBackup(localTimers.all()),null,2);
+    const data=JSON.stringify({...standaloneStore.exportBackup(localTimers.all()),recent:recentTimers.all()},null,2);
     const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='nexttimer-backup.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -599,12 +680,14 @@ if(STANDALONE){
   $('standalone-import')?.addEventListener('change',async e=>{
     const file=e.target.files?.[0];if(!file)return;
     try{
-      const data=standaloneStore.importBackup(JSON.parse(await file.text()));
+      const raw=JSON.parse(await file.text());
+      const data=standaloneStore.importBackup(raw);
       confirmAction({title:'Sicherung wiederherstellen?',description:'Alle vorhandenen lokalen Favoriten und Timer werden durch diese Sicherung ersetzt.',label:'Wiederherstellen',danger:true,run:async()=>{
         standaloneStore.replaceFavorites(data.favorites);
+        recentTimers.replace(raw.recent || []);
         localStorage.setItem('nexttimer.local-timers.v1',JSON.stringify(data.timers));
         localTimers.timers=localTimers.read();
-        await reload();message('Sicherung importiert.');
+        await reload();drawRecent();message('Sicherung importiert.');
       }});
     }catch(err){message(err.message,true);}
     finally{e.target.value='';}

@@ -7,15 +7,15 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=39">
-  <script defer src="js/i18n.js?v=39"></script>
-  <script type="module" src="js/app.js?v=39"></script>
-  <script defer src="pwa-update.js?v=39"></script>
+  <link rel="stylesheet" href="styles.css?v=40">
+  <script defer src="js/i18n.js?v=40"></script>
+  <script type="module" src="js/app.js?v=40"></script>
+  <script defer src="pwa-update.js?v=40"></script>
 </head>
 <body>
 <main class="shell">
   <header class="app-header">
-    <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><h1>NextTimer</h1></div>
+    <div class="brand"><a class="logo" href="https://github.com/desirevolution/next-timer" target="_blank" rel="noopener noreferrer" aria-label="NextTimer auf GitHub öffnen" title="GitHub-Repository öffnen">◷</a><h1>NextTimer</h1><span class="app-version" id="app-version" data-i18n-ignore>__NEXTTIMER_VERSION__</span></div>
     <div class="header-actions"><div class="connection" aria-live="polite"><span class="dot off" id="live"></span><span id="connect">Verbinde …</span></div><button type="button" id="open-shortcuts" class="header-settings shortcuts-button" aria-label="Tastaturkürzel anzeigen" title="Tastaturkürzel (?)">⌨</button><button type="button" id="open-settings" class="header-settings" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button></div>
   </header>
 
@@ -28,7 +28,14 @@
     <form id="quick-form" novalidate>
       <h2 id="quick-title">Neuer Timer</h2>
       <div class="quick-row">
-        <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder #1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
+        <div class="quick-history">
+          <input id="quick-input" type="text" placeholder="z. B. 5m Tee oder #1" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Dauer und optionaler Name" aria-describedby="quick-error">
+          <button id="recent-toggle" type="button" aria-label="Zuletzt verwendete Timer" aria-expanded="false" aria-controls="recent-popover" title="Zuletzt verwendet" disabled>◷</button>
+          <div id="recent-popover" class="recent-popover" hidden>
+            <div class="recent-heading"><strong>Zuletzt verwendet</strong><button type="button" id="recent-clear">Verlauf löschen</button></div>
+            <div id="recent-list" class="recent-list"></div>
+          </div>
+        </div>
         <button id="quick-start" class="primary-button" type="submit" disabled>▶ Start</button>
       </div>
       <div class="quick-presets" aria-label="Dauer vorgeben">
@@ -153,7 +160,7 @@
     </form>
   </dialog>
   <dialog id="confirm-dialog" class="edit-dialog confirm-dialog" aria-labelledby="confirm-title">
-    <div class="dialog-scroll"><h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p><p class="confirm-keyboard-hint">← / → Auswahl · Enter: ausgewählte Aktion · Esc: abbrechen</p></div>
+    <div class="dialog-scroll"><h2 id="confirm-title">Bestätigen</h2><p id="confirm-description"></p></div>
     <div class="form-actions edit-actions dialog-footer"><button type="button" id="confirm-cancel">Abbrechen</button><button type="button" id="confirm-ok" class="danger-button">Löschen</button></div>
   </dialog>
   <dialog id="shortcuts-dialog" class="edit-dialog shortcuts-dialog" aria-labelledby="shortcuts-title">

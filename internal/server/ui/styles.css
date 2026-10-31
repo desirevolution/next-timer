@@ -248,8 +248,7 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
 }
 
 /* Arrow-key instructions are only relevant for physical-keyboard users. */
-.confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:none;margin:0 0 10px;color:var(--muted);font-size:.78rem}
-@media(hover:hover) and (pointer:fine){.confirm-dialog .dialog-scroll>p.confirm-keyboard-hint{display:block}}
+
 
 /* Symmetric favorite editor insets: avoid permanent scrollbar gutters,
    which clipped the right-hand borders of fields on desktop browsers. */
@@ -302,3 +301,22 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
 .drag-ghost{display:flex!important;flex-direction:row!important;align-items:center!important;position:fixed!important;z-index:10000;pointer-events:none;opacity:.96!important;border:1px solid var(--accent)!important;background:#283b49!important;box-shadow:0 16px 32px #0008;transform:rotate(-1.5deg);margin:0!important;transition:none!important;overflow:hidden!important}
 @media(max-width:620px){.sorting .favorites-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.drag-ghost{transform:none}}
+
+/* v40: quiet release label and recent timer picker. */
+.app-version{font-size:.74rem;color:var(--muted);white-space:nowrap;opacity:.8;font-variant-numeric:tabular-nums}
+.quick-history{position:relative;flex:1 1 auto;min-width:0;display:flex;align-items:stretch}
+.quick-history #quick-input{width:100%;padding-right:49px}
+#recent-toggle{position:absolute;right:3px;top:3px;bottom:3px;border:0;background:transparent;color:var(--muted);font-size:1.35rem;padding:0;width:42px;min-height:40px;border-radius:8px}
+#recent-toggle:disabled{opacity:.35;cursor:default}
+#recent-toggle:not(:disabled):hover,#recent-toggle[aria-expanded="true"]{background:#2c3b4a;color:var(--fg)}
+.recent-popover{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:25;border:1px solid var(--stroke);border-radius:12px;background:#182331;box-shadow:0 16px 48px #0009;padding:7px;max-height:min(340px,55dvh);overflow:auto}
+.recent-popover[hidden]{display:none}
+.recent-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 9px 10px;font-size:.83rem}
+.recent-heading button{font-size:.77rem;padding:5px 7px;min-height:32px;color:var(--muted);background:transparent}
+.recent-list{display:grid;gap:3px}
+.recent-entry{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;min-height:47px;border:1px solid transparent;background:transparent;width:100%;border-radius:9px;min-width:0}
+.recent-entry:hover,.recent-entry.selected{background:#293e4b;border-color:#3e5c67}
+.recent-entry-name{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600}
+.recent-entry-duration{color:var(--muted);white-space:nowrap;font-size:.84rem;font-variant-numeric:tabular-nums}
+.recent-entry-play{font-size:.75rem;color:var(--accent)}
+@media(max-width:480px){.recent-popover{max-height:min(300px,46dvh)}.recent-entry{min-height:48px}}

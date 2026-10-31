@@ -4,6 +4,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
 ARG TARGETOS
 ARG TARGETARCH
+ARG NEXTTIMER_VERSION=dev
 COPY go.mod ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
@@ -11,7 +12,7 @@ COPY internal/ ./internal/
 RUN go mod tidy
 RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags='-s -w' -o /out/nexttimer-server ./cmd/nexttimer-server
+    go build -trimpath -ldflags="-s -w -X github.com/desirevolution/next-timer/internal/server.AppVersion=${NEXTTIMER_VERSION}" -o /out/nexttimer-server ./cmd/nexttimer-server
 RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags='-s -w' -o /out/nexttimer ./cmd/nexttimer

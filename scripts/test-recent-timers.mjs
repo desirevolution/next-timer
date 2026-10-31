@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {RecentTimers} from '../internal/server/ui/js/recent-timers.js';
+const map=new Map();
+const storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};
+const history=new RecentTimers(storage);
+const add=(name,opts={})=>history.add({duration:'5m',name,options:opts});
+for(const name of ['A','B','C','D','E','F'])add(name);
+assert.deepEqual(history.all().map(x=>x.name),['F','E','D','C','B']);
+add('D');assert.deepEqual(history.all().map(x=>x.name),['D','F','E','C','B']);
+const fresh=new RecentTimers(storage);
+assert.deepEqual(fresh.all().map(x=>x.name),['D','F','E','C','B']);
+fresh.clear();assert.equal(new RecentTimers(storage).all().length,0);
+console.log('Recent timer history: five unique, move-to-front, durable, clear OK');

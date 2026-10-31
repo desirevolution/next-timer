@@ -72,20 +72,21 @@ def build(destination:Path,version:str)->None:
       <input id="standalone-import" type="file" accept="application/json,.json" hidden></div></section>'''
     page, count = re.subn(r'<section class="settings-section" id="backup-settings" hidden></section>',backup,page,count=1)
     if count != 1: raise ValueError('Missing backup slot in Settings')
+    page=page.replace('__NEXTTIMER_VERSION__',version)
     index.write_text(page)
     # The version is part of the cache key, not the asset names. A new
     # deployment's worker will compare versions and offer an explicit update.
     # Tag all asset URLs with the build revision so browser/CDN caches cannot
     # mix JS from an older deployment with a new HTML shell.
     for asset in [dest/'index.html',dest/'sw.js',dest/'pwa-update.js',*(dest/'js').glob('*.js')]:
-        content = asset.read_text().replace('?v=39',f'?v={version}')
+        content = asset.read_text().replace('?v=40',f'?v={version}')
         # The manifest URL changes on each build to avoid stale install
         # metadata in browsers/CDNs. The app identity itself stays stable.
         if asset.name in ('index.html', 'sw.js'):
             content = content.replace('manifest.webmanifest', f'manifest.webmanifest?v={version}')
         asset.write_text(content)
     worker=dest/'sw.js'
-    text=worker.read_text().replace("const VERSION = 'v39';",f"const VERSION = 'static-{version}';")
+    text=worker.read_text().replace("const VERSION = 'v40';",f"const VERSION = 'static-{version}';")
     worker.write_text(text)
     # A repair page outside the SW fetch handler, scoped to this installation.
     (dest/'pwa-repair.html').write_text('''<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

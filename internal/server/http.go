@@ -16,6 +16,8 @@ import (
 //go:embed ui/*
 var uiFiles embed.FS
 
+var AppVersion = "dev" // overwritten with -ldflags -X for release builds
+
 type API struct{ Service *Service }
 
 func respond(w http.ResponseWriter, code int, value any) {
@@ -54,6 +56,16 @@ func (api API) Handler() http.Handler {
 			// The service worker manages offline assets. Avoid a second stale
 			// version being served from the browser's HTTP cache.
 			w.Header().Set("Cache-Control", "no-cache, max-age=0, must-revalidate")
+		}
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			body, err := fs.ReadFile(static, "index.html")
+			if err != nil {
+				http.Error(w, "index unavailable", 500)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = io.WriteString(w, strings.ReplaceAll(string(body), "__NEXTTIMER_VERSION__", AppVersion))
+			return
 		}
 		staticHandler.ServeHTTP(w, r)
 	}))
@@ -96,6 +108,13 @@ document.querySelector('#repair').addEventListener('click',async()=>{
 		}
 		w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
 		_, _ = w.Write(body)
+	})
+	mux.HandleFunc("DELETE /api/recent", func(w http.ResponseWriter, r *http.Request) {
+		if err := api.Service.ClearRecent(); err != nil {
+			apiError(w, 500, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, api.Service.Snapshot()) })
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, r *http.Request) {

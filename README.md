@@ -122,3 +122,23 @@ This project was built with AI assistance. I'm a lazy dev.
 ## License
 
 [MIT](LICENSE).
+
+
+### Repeat recent timers and release versions
+
+The clock icon inside the quick-entry field opens the five most recently
+started distinct timer configurations. Clicking an entry immediately starts
+another timer with the same duration, name, and alarm settings. In an empty
+focused entry, `↑` and `↓` navigate history; `Enter` starts the selected timer.
+
+The server saves its shared history in `<TIMER_DATA>.recent.json` alongside
+its favorites file, including timers started by the CLI. Browser-only timer
+history remains in that browser's `localStorage`; the standalone edition keeps
+its entire history there (and includes it in JSON backups). The history
+menu supports clearing the list.
+
+GitHub Pages deploys **only when a regular GitHub Release is published**, not
+on pushes or pre-releases. The version shown beside NextTimer comes from the
+release tag; development builds show `dev`. To build the static version use
+`python3 scripts/build-static.py --version TAG`. Docker builds accept the
+`NEXTTIMER_VERSION` build argument.

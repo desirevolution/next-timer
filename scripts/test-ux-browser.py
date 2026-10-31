@@ -11,6 +11,7 @@ MODULES={
     'alerts':('alerts.js',['alertFinished','initBrowserAlarms','getDefaults','saveDefaults','permission','requestNotifications','unlockAudio','playFinishSound']),
     'standalone':('standalone-store.js',['createStandaloneAPI']),
     'quick':('quick-timer.js',['parseQuickTimer']),
+    'recent':('recent-timers.js',['RecentTimers']),
 }
 def bundle():
     chunks=[]
@@ -21,7 +22,7 @@ def bundle():
         pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
         chunks.append(f'const module_{module}=(()=>{{{pre}\n{src}\nreturn {{{",".join(exports)}}};}})();')
     app=(UI/'js/app.js').read_text()
-    for filename,variable in {'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts'}.items():
+    for filename,variable in {'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent'}.items():
         pattern=rf'^import\s+\{{([^}}]+)\}}\s+from\s+[\'\"]\./{filename}\.js\?v=[^\'\"]+[\'\"];?\s*$'
         app,count=re.subn(pattern,lambda m:f'const {{{m.group(1)}}}=module_{variable};',app,count=1,flags=re.M)
         assert count==1,filename

@@ -40,12 +40,24 @@ type Template struct {
 	Notify      *bool         `json:"notify,omitempty"` // nil on legacy templates means enabled
 }
 
+// RecentTimer captures immutable settings at start time for one-click replay.
+type RecentTimer struct {
+	Name        string        `json:"name"`
+	Duration    string        `json:"duration"`
+	BrowserOnly bool          `json:"browser_only"`
+	Sound       bool          `json:"sound"`
+	Notify      bool          `json:"notify"`
+	Alarm       *BrowserAlarm `json:"alarm,omitempty"`
+	StartedAtMS int64         `json:"started_at_ms"`
+}
+
 type Snapshot struct {
-	ServerNowMS int64       `json:"server_now_ms"`
-	FocusID     string      `json:"focus_id,omitempty"`
-	Timers      []TimerView `json:"timers"`
-	Templates   []Template  `json:"templates"`
-	Groups      []string    `json:"groups"`
+	ServerNowMS int64         `json:"server_now_ms"`
+	FocusID     string        `json:"focus_id,omitempty"`
+	Timers      []TimerView   `json:"timers"`
+	Templates   []Template    `json:"templates"`
+	Groups      []string      `json:"groups"`
+	Recent      []RecentTimer `json:"recent"`
 }
 
 type Event struct {

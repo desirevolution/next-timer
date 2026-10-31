@@ -16,6 +16,7 @@ MODULES={
     'alerts':('alerts.js',['alertFinished','initBrowserAlarms','getDefaults','saveDefaults','permission','requestNotifications','unlockAudio','playFinishSound']),
     'standalone':('standalone-store.js',['createStandaloneAPI']),
     'quick':('quick-timer.js',['parseQuickTimer']),
+    'recent':('recent-timers.js',['RecentTimers']),
 }
 
 def browser_bundle():
@@ -27,7 +28,7 @@ def browser_bundle():
         pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
         chunks.append(f'const module_{module}=(()=>{{{pre}\n{source}\nreturn {{{",".join(exports)}}};}})();')
     app=(UI/'js/app.js').read_text()
-    mapping={'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts'}
+    mapping={'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent'}
     for filename,variable in mapping.items():
         pattern=rf'^import\s+\{{([^}}]+)\}}\s+from\s+[\'\"]\./{filename}\.js\?v=[^\'\"]+[\'\"];?\s*$'
         app,count=re.subn(pattern,lambda m:f'const {{{m.group(1)}}}=module_{variable};',app,count=1,flags=re.M)
@@ -93,7 +94,7 @@ with sync_playwright() as pw:
         favorite.focus()
         favorite.press('Enter')
         page.wait_for_function("document.querySelector('#timer-count')?.textContent==='3'")
-        assert favorite.evaluate('(el)=>el===document.activeElement'), 'Keyboard favorite must keep its focus'
+        assert not favorite.evaluate('(el)=>el===document.activeElement'), 'Started favorite must release focus regardless of input method'
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert not errors,errors
         print(f'Quick Timer DOM {width}px: desktop/touch focus, N, Enter, Esc, chips, favorites, no overflow / JS errors OK')

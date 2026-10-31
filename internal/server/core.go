@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -127,6 +129,7 @@ func groupNames(list []Template) []string {
 type TimerView = protocol.TimerView
 type Template = protocol.Template
 type Snapshot = protocol.Snapshot
+type RecentTimer = protocol.RecentTimer
 type Event = protocol.Event
 
 type Service struct {
@@ -134,6 +137,7 @@ type Service struct {
 	timers       map[string]*Timer
 	templates    []Template
 	templatePath string
+	recent       []RecentTimer
 	finishedTTL  time.Duration
 	subscribers  map[chan Event]struct{}
 }
@@ -160,6 +164,18 @@ func NewService(path string, ttl time.Duration) (*Service, error) {
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
+	}
+	// Keep recent timer history in a separate file so existing templates.json
+	// remains backwards-compatible with older installations.
+	if recentBytes, readErr := os.ReadFile(path + ".recent.json"); readErr == nil {
+		if err := json.Unmarshal(recentBytes, &s.recent); err != nil {
+			return nil, fmt.Errorf("Verlauf nicht lesbar: %w", err)
+		}
+		if len(s.recent) > 5 {
+			s.recent = s.recent[:5]
+		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return nil, readErr
 	}
 	groupPositions := map[string]int{}
 	maxPosition := 0
@@ -247,7 +263,7 @@ func (s *Service) focusLocked() *Timer {
 }
 
 func (s *Service) snapshotLocked(now time.Time) Snapshot {
-	out := Snapshot{ServerNowMS: now.UnixMilli(), Timers: make([]TimerView, 0, len(s.timers)), Templates: append([]Template{}, s.templates...), Groups: groupNames(s.templates)}
+	out := Snapshot{ServerNowMS: now.UnixMilli(), Timers: make([]TimerView, 0, len(s.timers)), Templates: append([]Template{}, s.templates...), Groups: groupNames(s.templates), Recent: append([]RecentTimer{}, s.recent...)}
 	if f := s.focusLocked(); f != nil {
 		out.FocusID = f.ID
 	}
@@ -314,6 +330,61 @@ func (s *Service) Subscribe() (chan Event, func()) {
 	return c, func() { s.mu.Lock(); delete(s.subscribers, c); close(c); s.mu.Unlock() }
 }
 
+// Persist at most five distinct recent server timer configurations.
+// Ignore timestamp for deduplication and move repeated configurations to front.
+func (s *Service) addRecentLocked(item RecentTimer) {
+	list := []RecentTimer{item}
+	for _, old := range s.recent {
+		if old.Name == item.Name && old.Duration == item.Duration && old.Sound == item.Sound &&
+			old.Notify == item.Notify && reflect.DeepEqual(old.Alarm, item.Alarm) {
+			continue
+		}
+		list = append(list, old)
+		if len(list) == 5 {
+			break
+		}
+	}
+	s.recent = list
+	if err := s.saveRecentLocked(); err != nil {
+		log.Printf("Verlauf nicht speicherbar: %v", err)
+	}
+}
+func (s *Service) saveRecentLocked() error {
+	path := s.templatePath + ".recent.json"
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(s.recent, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".recent-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if err = tmp.Chmod(0600); err == nil {
+		_, err = tmp.Write(data)
+	}
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}
+func (s *Service) ClearRecent() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.recent = []RecentTimer{}
+	if err := s.saveRecentLocked(); err != nil {
+		return err
+	}
+	s.publishLocked("history", nil, time.Now())
+	return nil
+}
+
 func (s *Service) Start(name string, duration time.Duration) *TimerView {
 	return s.StartConfigured(name, duration, TimerOptions{Sound: true, Notify: true})
 }
@@ -326,6 +397,7 @@ func (s *Service) StartConfigured(name string, duration time.Duration, options T
 	defer s.mu.Unlock()
 	t := &Timer{ID: id("t"), Name: strings.TrimSpace(name), Duration: duration, Deadline: now.Add(duration), Remaining: duration, Status: "running", CreatedAt: now, Sound: options.Sound, Notify: options.Notify, Alarm: options.Alarm}
 	s.timers[t.ID] = t
+	s.addRecentLocked(RecentTimer{Name: t.Name, Duration: duration.String(), Sound: options.Sound, Notify: options.Notify, Alarm: options.Alarm, StartedAtMS: now.UnixMilli()})
 	s.publishLocked("started", t, now)
 	v := t.view(now)
 	return &v
