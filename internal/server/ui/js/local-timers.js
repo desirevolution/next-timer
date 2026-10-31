@@ -4,12 +4,34 @@ const KEY = 'nexttimer.local-timers.v1';
 const TTL = 60_000;
 const MAX_DURATION = 7 * 24 * 60 * 60 * 1000;
 
+const UNIT_MS = {ms:1,h:3600000,m:60000,s:1000};
+
+// Tolerant duration parser for display and history keys. Unlike the timer
+// parser below, it does not enforce the 1s–168h timer range and never throws.
+export function durationMilliseconds(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  const text = String(value ?? '').trim();
+  const parts = [...text.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)];
+  if (!parts.length || parts.map(p => p[0]).join('') !== text) return NaN;
+  const ms = parts.reduce((sum, p) => sum + Number(p[1]) * UNIT_MS[p[2]], 0);
+  return Number.isFinite(ms) ? ms : NaN;
+}
+
+// Canonical human notation ("3m", "1m30s", "1h30m") accepted by both the JS
+// and Go timer parsers. Minimal units, millisecond precision, no spaces.
+export function formatDurationText(value) {
+  const ms = durationMilliseconds(value);
+  if (!Number.isFinite(ms) || ms <= 0) return typeof value === 'string' ? value.trim() : '';
+  const total = Math.round(ms), h = Math.floor(total/3600000), m = Math.floor(total/60000)%60,
+    s = Math.floor(total/1000)%60, rest = total%1000;
+  return `${h?`${h}h`:''}${m?`${m}m`:''}${s?`${s}s`:''}${rest?`${rest}ms`:''}`;
+}
+
 export function parseTimerDuration(input) {
   const text = String(input || '').trim();
-  const parts = [...text.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)];
-  if (!parts.length || parts.map(p => p[0]).join('') !== text) throw Error('Dauer angeben, z. B. 10m oder 1h30m.');
-  const ms = parts.reduce((sum, p) => sum + Number(p[1]) * ({ms:1,h:3600000,m:60000,s:1000}[p[2]]), 0);
-  if (!Number.isFinite(ms) || ms < 1000 || ms > MAX_DURATION) throw Error('Dauer muss zwischen 1s und 168h liegen.');
+  const ms = durationMilliseconds(text);
+  if (!Number.isFinite(ms)) throw Error('Dauer angeben, z. B. 10m oder 1h30m.');
+  if (ms < 1000 || ms > MAX_DURATION) throw Error('Dauer muss zwischen 1s und 168h liegen.');
   return Math.round(ms);
 }
 

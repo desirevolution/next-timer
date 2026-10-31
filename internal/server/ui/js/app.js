@@ -1,9 +1,9 @@
-import {RecentTimers} from './recent-timers.js?v=40';
-import {enableFavoriteSorting} from './favorite-sort.js?v=40';
-import {createStandaloneAPI} from './standalone-store.js?v=40';
-import {LocalTimers} from './local-timers.js?v=40';
-import {parseQuickTimer} from './quick-timer.js?v=40';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=40';
+import {RecentTimers} from './recent-timers.js?v=41';
+import {enableFavoriteSorting} from './favorite-sort.js?v=41';
+import {createStandaloneAPI} from './standalone-store.js?v=41';
+import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=41';
+import {parseQuickTimer} from './quick-timer.js?v=41';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=41';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -15,10 +15,10 @@ const fmt = ms => {
   const h = Math.floor(seconds/3600), m = Math.floor(seconds%3600/60), s = seconds%60;
   return (h?`${String(h).padStart(2,'0')}:`:'')+`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 };
+// Clock notation for display only; it is not valid timer input.
 const durationLabel = raw => {
-  const value = String(raw), units = [...value.matchAll(/(\d+(?:\.\d+)?)(h|ms|m|s)/g)];
-  if (!units.length || units.map(x=>x[0]).join('') !== value) return value;
-  return fmt(units.reduce((sum,x)=>sum+Number(x[1])*({h:3600000,m:60000,s:1000,ms:1}[x[2]]),0));
+  const ms = durationMilliseconds(raw);
+  return Number.isFinite(ms) ? fmt(ms) : String(raw ?? '');
 };
 const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nexttimer.templates-cache.v1') || '[]');} catch {return [];}})();
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
@@ -321,6 +321,9 @@ function drawRecent() {
 }
 function closeRecent() {recentOpen=false;drawRecent();}
 function resetRecentSelection(){recentIndex=-1;recentChoice=null;}
+// The input shows the stored duration in its canonical notation, not the raw
+// storage form ("180000ms" or Go's "3m0s") that the history entry carries.
+const recentValue = entry => `${formatDurationText(entry.duration)}${entry.name?' '+entry.name:''}`;
 function stepRecent(direction){
   const entries=recentEntries();
   if(!entries.length)return false;
@@ -335,7 +338,7 @@ function stepRecent(direction){
     if(recentIndex<0){resetRecentSelection();setQuickValue(recentDraft);drawRecent();return true;}
   }
   recentChoice=entries[recentIndex];
-  setQuickValue(`${recentChoice.duration}${recentChoice.name?' '+recentChoice.name:''}`);
+  setQuickValue(recentValue(recentChoice));
   drawRecent();
   return true;
 }
@@ -368,7 +371,7 @@ function clearQuickError() {
 }
 quickInput.addEventListener('input', () => {
   clearQuickError();
-  if(recentChoice && quickInput.value!==`${recentChoice.duration}${recentChoice.name?' '+recentChoice.name:''}`)resetRecentSelection();
+  if(recentChoice && quickInput.value!==recentValue(recentChoice))resetRecentSelection();
   if (!quickPending) quickButton.disabled = !quickInput.value.trim();
 });
 $('quick-form').addEventListener('submit', async event => {
@@ -378,7 +381,12 @@ $('quick-form').addEventListener('submit', async event => {
   let entry, favoriteID=null;
   try {
     const value=quickInput.value.trim();
-    if(/^#[0-9]$/.test(value)) {
+    // An untouched history entry keeps its exact stored duration and name:
+    // re-parsing the single input line would treat a name like "5m Sprint" as
+    // more duration. Its captured options stay authoritative.
+    if(recentChoice && quickInput.value===recentValue(recentChoice)) {
+      entry={duration:recentChoice.duration,name:recentChoice.name};
+    } else if(/^#[0-9]$/.test(value)) {
       const favorite=(current.templates||[]).find(f=>f.shortcut===value.slice(1));
       if(!favorite) throw Error(`Kein Favorit für ${value} zugewiesen.`);
       favoriteID=favorite.id;
@@ -425,13 +433,6 @@ document.querySelectorAll('[data-quick-duration]').forEach(button => button.addE
 }));
 $('focus-previous').addEventListener('click',()=>selectTimer(-1));
 $('focus-next').addEventListener('click',()=>selectTimer(1));
-function durationForEditor(ms){
-  if(!Number.isFinite(ms))return '';
-  if(ms % 3600000===0)return `${ms/3600000}h`;
-  if(ms % 60000===0)return `${ms/60000}m`;
-  if(ms % 1000===0)return `${ms/1000}s`;
-  return `${ms}ms`;
-}
 $('new-favorite').addEventListener('click',()=>openFavoriteEditor());
 $('settings-repair-link').href=STANDALONE?'pwa-repair.html':'/api/pwa-repair';
 function openFavoriteEditor(fav=null,{group="",timer=null}={}) {
@@ -440,7 +441,7 @@ function openFavoriteEditor(fav=null,{group="",timer=null}={}) {
   $('dialog-title').textContent=fav?'Favorit bearbeiten':'Neuer Favorit';
   $('edit-submit').textContent=fav?'Änderungen speichern':'Favorit speichern';
   $('edit-name').value=source?.name==='Timer'&&!fav?'':source?.name||'';
-  $('edit-duration').value=source ? (source.duration || durationForEditor(source.duration_ms)) : '';
+  $('edit-duration').value=source ? formatDurationText(source.duration || source.duration_ms) : '';
   $('edit-group').value=fav?.group||group;
   $('edit-shortcut').value=fav?.shortcut||'';
   highlightGroupPicks('edit');

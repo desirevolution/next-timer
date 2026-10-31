@@ -10,4 +10,12 @@ add('D');assert.deepEqual(history.all().map(x=>x.name),['D','F','E','C','B']);
 const fresh=new RecentTimers(storage);
 assert.deepEqual(fresh.all().map(x=>x.name),['D','F','E','C','B']);
 fresh.clear();assert.equal(new RecentTimers(storage).all().length,0);
-console.log('Recent timer history: five unique, move-to-front, durable, clear OK');
+// Equal durations in different storage notations are one configuration.
+const dedupeMap=new Map();
+const dedupeStorage={getItem:k=>dedupeMap.get(k)||null,setItem:(k,v)=>dedupeMap.set(k,v)};
+const dedupeHistory=new RecentTimers(dedupeStorage);
+for (const duration of ['3m','180000ms','3m0s']) dedupeHistory.add({duration,name:'Pause',options:{sound:true,notify:true,alarm:null}});
+assert.equal(dedupeHistory.all().length,1);
+assert.equal(dedupeHistory.all()[0].duration,'3m0s');
+assert.equal(new RecentTimers(dedupeStorage).all().length,1);
+console.log('Recent timer history: five unique, notation-insensitive dedupe, move-to-front, durable, clear OK');

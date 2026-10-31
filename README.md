@@ -130,6 +130,12 @@ The clock icon inside the quick-entry field opens the five most recently
 started distinct timer configurations. Clicking an entry immediately starts
 another timer with the same duration, name, and alarm settings. In an empty
 focused entry, `↑` and `↓` navigate history; `Enter` starts the selected timer.
+Equal durations in different notations (`3m` and `180000ms`) count as the same
+configuration. Restoring a history entry puts the duration into the
+quick-entry field in human notation (`3m`, `1m30s`), never in the form it
+happens to be stored in (`180000ms` in the standalone edition, Go's `3m0s` on
+the server); the favorite editor prefills the same notation. The history
+popover itself keeps the compact clock label.
 
 The server saves its shared history in `<TIMER_DATA>.recent.json` alongside
 its favorites file, including timers started by the CLI. Browser-only timer

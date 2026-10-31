@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 UI=ROOT/'dist/static'
 MODULES={
-    'local':('local-timers.js',['parseTimerDuration','LocalTimers']),
+    'local':('local-timers.js',['parseTimerDuration','durationMilliseconds','formatDurationText','LocalTimers']),
     'sort':('favorite-sort.js',['enableFavoriteSorting']),
     'alerts':('alerts.js',['alertFinished','initBrowserAlarms','getDefaults','saveDefaults','permission','requestNotifications','unlockAudio','playFinishSound']),
     'standalone':('standalone-store.js',['createStandaloneAPI']),
@@ -19,7 +19,8 @@ def bundle():
         src=(UI/'js'/file).read_text().replace('import.meta.url','"https://nexttimer.example.test/js/alerts.js"')
         src=re.sub(r"^import\s+\{[^}]*\}\s+from\s+['\"][^'\"]+['\"];?\s*$",'',src,flags=re.M)
         src=re.sub(r'\bexport\s+(?=(?:async\s+)?(?:function|class|const)\b)','',src)
-        pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
+        if module=='recent': pre='const {durationMilliseconds}=module_local;'
+        else: pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
         chunks.append(f'const module_{module}=(()=>{{{pre}\n{src}\nreturn {{{",".join(exports)}}};}})();')
     app=(UI/'js/app.js').read_text()
     for filename,variable in {'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent'}.items():

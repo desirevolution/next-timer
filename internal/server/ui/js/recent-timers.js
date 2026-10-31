@@ -1,3 +1,5 @@
+import {durationMilliseconds} from './local-timers.js?v=41';
+
 // Browser-local, durable recent timer configurations. Never persists active timers.
 const STORAGE_KEY='nexttimer.recent-timers.v1';
 const MAX=5;
@@ -12,7 +14,10 @@ function normalize(entry){
     alarm:o.alarm?JSON.parse(JSON.stringify(o.alarm)):null
   }};
 }
-function key(entry){return JSON.stringify([entry.duration,entry.name,entry.options]);}
+function key(entry){
+  const ms=durationMilliseconds(entry.duration);
+  return JSON.stringify([Number.isFinite(ms)?Math.round(ms):entry.duration,entry.name,entry.options]);
+}
 export class RecentTimers {
   constructor(storage=globalThis.localStorage){
     this.storage=storage;
