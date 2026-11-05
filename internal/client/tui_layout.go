@@ -47,6 +47,7 @@ func renderTUI(m tuiModel) string {
 			"Tab               Bereich wechseln",
 			"↑/↓ oder j/k      Eintrag auswählen",
 			"Enter             Starten / Ansehen",
+			"r                 Zuletzt beendeten Timer wiederholen",
 			"Space / p         Pause / Fortsetzen",
 			"+ / −             Eine Minute ändern",
 			"x                 Stoppen (nur in der Übersicht)",
@@ -211,6 +212,9 @@ func renderOverviewCompact(m tuiModel, width, height int) string {
 	if focus == nil {
 		sections = append(sections, mutedStyle.Render("KEIN LAUFENDER TIMER"),
 			titleStyle.Render("Bereit für deinen nächsten Countdown"))
+		if m.snap.LastFinished != nil {
+			sections = append(sections, accentStyle.Render("↻ R · "+shortName(m.snap.LastFinished.Name, max(10, width-26))+" wiederholen"))
+		}
 	} else {
 		rem := remaining(*focus, now)
 		urgent := focus.Status == "running" && rem <= 10*time.Second
@@ -315,9 +319,9 @@ func renderOverviewCompact(m tuiModel, width, height int) string {
 		}
 		sections = append(sections, row)
 	}
-	footer := mutedStyle.Render("1–9 Start · n Neu · Tab Bereich · ↑↓ Auswahl · Enter · ? Hilfe · q Ende")
+	footer := mutedStyle.Render("1–9 Start · r Wiederholen · n Neu · Tab Bereich · ↑↓ Auswahl · Enter · ? Hilfe · q Ende")
 	if width < 72 {
-		footer = mutedStyle.Render("1–9 Start · n Neu · Tab Wechsel · ? Hilfe · q Ende")
+		footer = mutedStyle.Render("1–9 Start · r Wiederholen · n Neu · Tab Wechsel · ? Hilfe · q Ende")
 	}
 	// Keep footer visible on short terminals. Prioritize the timer and favorites.
 	if len(sections)+1 > height {
@@ -368,9 +372,9 @@ func renderOverviewPanels(m tuiModel, width, height int) string {
 		}
 		return "● Verbunden"
 	}()) + mutedStyle.Render("    "+host)
-	footer := mutedStyle.Render(" Tab Panel  │  j/k Auswahl  │  1–9 Start  │  Enter Öffnen  │  n Neu  │  Space Pause  │  x Stop  │  ? Hilfe  │  q Beenden")
+	footer := mutedStyle.Render(" Tab Panel  │  j/k Auswahl  │  1–9 Start  │  Enter Öffnen  │  r Wiederholen  │  n Neu  │  Space Pause  │  x Stop  │  ? Hilfe  │  q Beenden")
 	if width < 112 {
-		footer = mutedStyle.Render(" Tab Wechsel  ·  j/k Auswahl  ·  1–9 Start  ·  Enter  ·  n Neu  ·  ? Hilfe  ·  q Ende")
+		footer = mutedStyle.Render(" Tab Wechsel  ·  j/k Auswahl  ·  1–9 Start  ·  Enter  ·  r Wiederholen  ·  n Neu  ·  ? Hilfe  ·  q Ende")
 	}
 	if m.message != "" {
 		footer = warningStyle.Render(shortName(m.message, width-4))
@@ -498,6 +502,9 @@ func detailPanelLines(m tuiModel, innerW, innerH int) []string {
 	}
 	if t == nil {
 		head = append(head, "", mutedStyle.Render("Kein laufender Timer"), "", accentStyle.Render("Neuen Timer starten: n"), mutedStyle.Render("Favorit starten: 1–9 / Enter"))
+		if m.snap.LastFinished != nil {
+			head = append(head, "", mutedStyle.Render("ZULETZT BEENDET"), titleStyle.Render(shortName(m.snap.LastFinished.Name, innerW-2)), accentStyle.Render("r · Wiederholen ("+m.snap.LastFinished.Duration+")"))
+		}
 		if len(m.snap.Templates) > 0 && m.section == favoritesSection {
 			fav := m.snap.Templates[min(m.favoriteIndex, len(m.snap.Templates)-1)]
 			head = append(head, "", mutedStyle.Render("AUSGEWÄHLTER FAVORIT"), titleStyle.Render(shortName(fav.Name, innerW-2)), accentStyle.Render("Dauer: "+fav.Duration))

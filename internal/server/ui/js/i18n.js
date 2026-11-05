@@ -18,6 +18,10 @@
     'Abgelaufen':'Expired','Bestätigen':'Acknowledge',
     'Zuletzt verwendet':'Recently used','Zuletzt verwendete Timer':'Recently used timers',
     'Verlauf löschen':'Clear history','Ohne Namen':'Unnamed',
+    'Noch kein beendeter Timer vorhanden':'No finished timer available yet',
+    '{name} · {duration} wiederholen':'Repeat {name} · {duration}',
+    'Letzten Timer {name} wiederholen':'Repeat last timer {name}',
+    'Letzten beendeten Timer wiederholen':'Repeat last finished timer',
     'Timer {name} erneut starten':'Restart timer {name}',
     'Neuer Timer':'New timer','z. B. 5m Tee oder #1':'e.g. 5m Tea or #1',
     'Dauer und optionaler Name':'Duration and optional name','▶ Start':'▶ Start',
@@ -90,6 +94,7 @@
     'Eingabe leeren; sonst Fokus verlassen / zur Eingabe zurück':'Clear input; otherwise leave focus / return to input',
     'Zwischen angezeigten Timern wechseln':'Switch between displayed timers',
     'Angezeigten Timer pausieren/fortsetzen':'Pause/resume displayed timer',
+    'Zuletzt beendeten Timer wiederholen':'Repeat the last finished timer',
     'Angezeigten Timer beenden (mit Bestätigung)':'Stop displayed timer (with confirmation)',
     'Diese Hilfe öffnen':'Open this help',
     'Shortcuts und Pfeiltasten funktionieren außerhalb von Textfeldern und Dialogen. Esc funktioniert überall außerhalb von Dialogen; Tab navigiert zwischen Bedienelementen. In Bestätigungsdialogen wählt ← / → die Aktion.':

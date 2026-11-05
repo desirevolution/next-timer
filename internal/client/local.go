@@ -13,9 +13,10 @@ import (
 // localStore is deliberately process-local. Closing the client ends its timers;
 // no network request, AWTRIX update or server-side alarm is generated.
 type localStore struct {
-	mu     sync.Mutex
-	next   int
-	timers []localEntry
+	mu           sync.Mutex
+	next         int
+	timers       []localEntry
+	lastFinished *protocol.CompletedTimer
 }
 
 type localEntry struct {
@@ -42,6 +43,23 @@ func (s *localStore) create(duration time.Duration, name string) protocol.TimerV
 	return t
 }
 
+// recordFinishedLocked is only called when holding the local store lock.
+func (s *localStore) recordFinishedLocked(t protocol.TimerView, end time.Time) {
+	if s.lastFinished != nil && end.UnixMilli() < s.lastFinished.EndedAtMS {
+		return
+	}
+	s.lastFinished = &protocol.CompletedTimer{Name: t.Name, Duration: (time.Duration(t.DurationMS) * time.Millisecond).String(), BrowserOnly: true, Sound: t.Sound, Notify: t.Notify, Alarm: t.Alarm, EndedAtMS: end.UnixMilli()}
+}
+func (s *localStore) completed() *protocol.CompletedTimer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lastFinished == nil {
+		return nil
+	}
+	item := *s.lastFinished
+	return &item
+}
+
 func (s *localStore) snapshot() []protocol.TimerView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -55,6 +73,7 @@ func (s *localStore) snapshot() []protocol.TimerView {
 				entry.timer.Status = "finished"
 				entry.timer.RemainingMS = 0
 				entry.timer.FinishedAtMS = now.UnixMilli()
+				s.recordFinishedLocked(entry.timer, entry.deadline)
 			} else {
 				entry.timer.RemainingMS = left.Milliseconds()
 				entry.timer.DeadlineMS = entry.deadline.UnixMilli()
@@ -78,6 +97,7 @@ func (s *localStore) control(id, action, delta string) error {
 			e.timer.Status = "finished"
 			e.timer.RemainingMS = 0
 			e.timer.FinishedAtMS = now.UnixMilli()
+			s.recordFinishedLocked(e.timer, e.deadline)
 		}
 		switch action {
 		case "pause":
@@ -109,6 +129,7 @@ func (s *localStore) control(id, action, delta string) error {
 			if newRemaining <= 0 {
 				e.timer.Status = "finished"
 				e.timer.FinishedAtMS = now.UnixMilli()
+				s.recordFinishedLocked(e.timer, now)
 				e.timer.RemainingMS = 0
 				return nil
 			}
@@ -122,6 +143,9 @@ func (s *localStore) control(id, action, delta string) error {
 				e.timer.DeadlineMS = e.deadline.UnixMilli()
 			}
 		case "stop":
+			if e.timer.Status == "running" || e.timer.Status == "paused" {
+				s.recordFinishedLocked(e.timer, now)
+			}
 			s.timers = append(s.timers[:i], s.timers[i+1:]...)
 		default:
 			return fmt.Errorf("unbekannte Aktion: %s", action)

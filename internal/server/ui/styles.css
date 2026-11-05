@@ -304,6 +304,7 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
 
 /* v40: quiet release label and recent timer picker. */
 .app-version{font-size:.74rem;color:var(--muted);white-space:nowrap;opacity:.8;font-variant-numeric:tabular-nums}
+.repeat-idle{margin:15px 0 0;display:flex;justify-content:flex-start}.repeat-idle[hidden]{display:none}.repeat-idle button{display:flex;align-items:center;gap:8px;padding:10px 14px;max-width:100%;font-size:.9rem;background:var(--surface, #1e2c3c);border:1px solid var(--stroke);border-radius:10px;text-align:left}.repeat-idle button:hover{border-color:var(--accent)}.repeat-idle #repeat-last-label{min-width:0;overflow-wrap:anywhere}.repeat-key{font-size:.7rem;color:var(--muted);border:1px solid var(--stroke);border-radius:4px;padding:1px 5px;margin-left:3px}
 .quick-history{position:relative;flex:1 1 auto;min-width:0;display:flex;align-items:stretch}
 .quick-history #quick-input{width:100%;padding-right:49px}
 #recent-toggle{position:absolute;right:3px;top:3px;bottom:3px;border:0;background:transparent;color:var(--muted);font-size:1.35rem;padding:0;width:42px;min-height:40px;border-radius:8px}

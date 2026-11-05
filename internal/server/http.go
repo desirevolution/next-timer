@@ -109,6 +109,14 @@ document.querySelector('#repair').addEventListener('click',async()=>{
 		w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
 		_, _ = w.Write(body)
 	})
+	mux.HandleFunc("POST /api/repeat", func(w http.ResponseWriter, r *http.Request) {
+		timer, err := api.Service.RepeatLast()
+		if err != nil {
+			apiError(w, 404, err)
+			return
+		}
+		respond(w, 201, timer)
+	})
 	mux.HandleFunc("DELETE /api/recent", func(w http.ResponseWriter, r *http.Request) {
 		if err := api.Service.ClearRecent(); err != nil {
 			apiError(w, 500, err)

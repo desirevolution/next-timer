@@ -1,4 +1,4 @@
-import {durationMilliseconds} from './local-timers.js?v=41';
+import {durationMilliseconds} from './local-timers.js?v=42';
 
 // Browser-local, durable recent timer configurations. Never persists active timers.
 const STORAGE_KEY='nexttimer.recent-timers.v1';

@@ -51,13 +51,26 @@ type RecentTimer struct {
 	StartedAtMS int64         `json:"started_at_ms"`
 }
 
+// CompletedTimer stores the last timer that actually elapsed or was stopped.
+// It is distinct from RecentTimer, which tracks timer starts.
+type CompletedTimer struct {
+	Name        string        `json:"name"`
+	Duration    string        `json:"duration"`
+	BrowserOnly bool          `json:"browser_only,omitempty"`
+	Sound       bool          `json:"sound"`
+	Notify      bool          `json:"notify"`
+	Alarm       *BrowserAlarm `json:"alarm,omitempty"`
+	EndedAtMS   int64         `json:"ended_at_ms"`
+}
+
 type Snapshot struct {
-	ServerNowMS int64         `json:"server_now_ms"`
-	FocusID     string        `json:"focus_id,omitempty"`
-	Timers      []TimerView   `json:"timers"`
-	Templates   []Template    `json:"templates"`
-	Groups      []string      `json:"groups"`
-	Recent      []RecentTimer `json:"recent"`
+	LastFinished *CompletedTimer `json:"last_finished,omitempty"`
+	ServerNowMS  int64           `json:"server_now_ms"`
+	FocusID      string          `json:"focus_id,omitempty"`
+	Timers       []TimerView     `json:"timers"`
+	Templates    []Template      `json:"templates"`
+	Groups       []string        `json:"groups"`
+	Recent       []RecentTimer   `json:"recent"`
 }
 
 type Event struct {

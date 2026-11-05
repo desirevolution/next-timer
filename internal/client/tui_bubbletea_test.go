@@ -160,3 +160,23 @@ func TestSnapshotClockSkewUsesRequestMidpoint(t *testing.T) {
 		t.Fatalf("midpoint skew = %s, expected %s", m.skew, want)
 	}
 }
+
+func TestTUIRepeatShortcutStartsLastFinished(t *testing.T) {
+	m := sampleTUI()
+	m.snap.LastFinished = &protocol.CompletedTimer{Name: "Tea", Duration: "2m0s", EndedAtMS: time.Now().UnixMilli()}
+	next, cmd := updated(m, "r")
+	if cmd == nil || next.mode != overviewMode {
+		t.Fatal("r must dispatch repeat from overview")
+	}
+	watch := m.newWatch("2")
+	next, cmd = updated(watch, "r")
+	if cmd == nil || next.mode != watchMode {
+		t.Fatal("r must dispatch repeat from watch mode")
+	}
+	m.mode = newMode
+	m.input = ""
+	next, cmd = updated(m, "r")
+	if cmd != nil || next.input != "r" {
+		t.Fatal("r must remain a normal character inside new-timer input")
+	}
+}

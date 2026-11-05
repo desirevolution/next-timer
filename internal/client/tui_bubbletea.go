@@ -155,6 +155,29 @@ func startFavoriteCmd(tmpl protocol.Template, locals *localStore, forceLocal, st
 		return actionMsg{err: err, info: "Favorit gestartet", started: &t, stayInOverview: stayInOverview}
 	}
 }
+func repeatCmd(locals *localStore, localOnly bool) tea.Cmd {
+	return func() tea.Msg {
+		if localOnly {
+			if locals == nil {
+				return actionMsg{err: errors.New("Lokale Timer nicht verfügbar")}
+			}
+			last := locals.completed()
+			if last == nil {
+				return actionMsg{err: errors.New("Noch kein beendeter Timer vorhanden")}
+			}
+			duration, err := time.ParseDuration(last.Duration)
+			if err != nil {
+				return actionMsg{err: err}
+			}
+			started := locals.create(duration, last.Name)
+			return actionMsg{info: "Letzten Timer wiederholt", started: &started}
+		}
+		var started protocol.TimerView
+		err := request("POST", "/api/repeat", nil, &started)
+		return actionMsg{err: err, info: "Letzten Timer wiederholt", started: &started}
+	}
+}
+
 func createCmd(input string, locals *localStore, localOnly, overview bool) tea.Cmd {
 	return func() tea.Msg {
 		input = strings.TrimSpace(input)
@@ -198,6 +221,9 @@ func (m tuiModel) handleSnapshot(s protocol.Snapshot) tuiModel {
 	m.remote = s
 	if m.locals != nil {
 		s = mergeLocal(s, m.locals.snapshot())
+	}
+	if m.localOnly && m.locals != nil {
+		s.LastFinished = m.locals.completed()
 	}
 	m.snap = s
 	m.skew = time.UnixMilli(s.ServerNowMS).Sub(time.Now())
@@ -313,6 +339,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.locals != nil {
 			// Local timers reach finished without any server round-trip.
 			m.snap = mergeLocal(m.remote, m.locals.snapshot())
+			if m.localOnly {
+				m.snap.LastFinished = m.locals.completed()
+			}
 			if m.mode == watchMode && !m.cliLaunch && m.watchID != "" && m.doneSince.IsZero() && !m.pendingWatch {
 				if t := findTimer(m.snap, m.watchID); t == nil || t.Status == "finished" {
 					m.doneName = "Timer"
@@ -463,8 +492,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.input = ""
 			return m, nil
 		}
-		if key == "r" {
-			return m, func() tea.Msg { return fetchSnapshotFor(m.localOnly) }
+		if key == "r" && !m.cliLaunch {
+			// Repeats from the shared server in connected mode; from the
+			// process-local completion state in standalone TUI mode.
+			return m, repeatCmd(m.locals, m.localOnly)
 		}
 		if m.mode == watchMode {
 			return m, nil

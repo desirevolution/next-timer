@@ -1,6 +1,7 @@
 // Local timers deliberately do not sync with NextTimer's Go service or AWTRIX.
 // Wall-clock deadlines survive reloads. Browsers cannot guarantee background alarms.
 const KEY = 'nexttimer.local-timers.v1';
+const LAST_KEY = 'nexttimer.local-last-finished.v1';
 const TTL = 60_000;
 const MAX_DURATION = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,7 +41,9 @@ export class LocalTimers {
     this.onChange = onChange;
     this.onFinish = onFinish;
     this.timers = this.read();
+    this.lastFinished = this.readLastFinished();
     window.addEventListener('storage', e => {
+      if (e.key === LAST_KEY) {this.lastFinished=this.readLastFinished();this.onChange();return;}
       if (e.key !== KEY) return;
       this.timers = this.read();
       this.onChange();
@@ -57,6 +60,28 @@ export class LocalTimers {
         Number.isFinite(t.remaining_ms) && Number.isFinite(t.created_at_ms) &&
         Number.isFinite(t.deadline_ms) && typeof t.name === 'string').slice(-100).map(({icon, ...t}) => ({...t,local:true,sound:t.sound!==false,notify:t.notify!==false}));
     } catch { return []; }
+  }
+  readLastFinished() {
+    try {
+      const item=JSON.parse(localStorage.getItem(LAST_KEY)||'null');
+      if(!item || typeof item.name!=='string'|| !Number.isFinite(item.ended_at_ms)||
+        item.ended_at_ms<=0 || !Number.isFinite(durationMilliseconds(item.duration)) ||
+        durationMilliseconds(item.duration)<1000 || durationMilliseconds(item.duration)>MAX_DURATION) return null;
+      return item;
+    } catch {return null;}
+  }
+  restoreLastFinished(item) {
+    localStorage.setItem(LAST_KEY,JSON.stringify(item??null));
+    this.lastFinished=this.readLastFinished();this.onChange();
+  }
+  completed(t, ended) {
+    if(this.lastFinished && this.lastFinished.ended_at_ms>ended) return;
+    const item={name:t.name,duration:`${t.duration_ms}ms`,browser_only:true,
+      sound:t.sound!==false,notify:t.notify!==false,alarm:t.alarm??null,ended_at_ms:ended};
+    this.lastFinished=item;
+    try {localStorage.setItem(LAST_KEY,JSON.stringify(item));}
+    catch(error){console.warn('NextTimer: completion could not be persisted',error);}
+    this.onChange();
   }
   save() {
     try { localStorage.setItem(KEY, JSON.stringify(this.timers)); }
@@ -79,11 +104,14 @@ export class LocalTimers {
     const now = Date.now();
     const remain = t.status === 'running' ? Math.max(0,t.deadline_ms-now) : t.remaining_ms;
     if (t.status === 'running' && remain <= 0) this.finish(t, now);
-    if (action === 'stop') {this.timers = this.timers.filter(x => x.id !== id);this.save();return;}
+    if (action === 'stop') {
+      if(t.status==='running'||t.status==='paused')this.completed(t,now);
+      this.timers = this.timers.filter(x => x.id !== id);this.save();return;
+    }
     if (action === 'pause' && t.status === 'running') {t.remaining_ms=remain;t.status='paused';}
     else if (action === 'resume' && t.status === 'paused') {t.deadline_ms=now+t.remaining_ms;t.status='running';}
     else if (action === 'adjust' && (t.status === 'running' || t.status === 'paused')) {
-      if (remain+delta <= 0) {this.finish(t,now);this.save();return;}
+      if (remain+delta <= 0) {this.finish(t,now,true);this.save();return;}
       if (remain+delta > MAX_DURATION) throw Error('Maximale Restzeit: 168h.');
       t.remaining_ms=remain+delta;
       t.duration_ms=Math.max(1000,t.duration_ms+delta);
@@ -91,9 +119,11 @@ export class LocalTimers {
     } else throw Error('Aktion für den aktuellen Zustand nicht möglich.');
     this.save();
   }
-  finish(t, now) {
+  finish(t, now, adjusted=false) {
     if(t.status === 'finished') return;
+    const ended=!adjusted && t.status==='running' ? Math.min(now,t.deadline_ms) : now;
     t.status='finished';t.remaining_ms=0;t.finished_at_ms=now;
+    this.completed(t,ended);
     this.onFinish(t);
   }
   tick() {

@@ -14,13 +14,13 @@ assert 'id="new-section"' not in html
 assert 'id="save-favorite"' not in html
 assert "confirm(" not in js and "prompt(" not in js and "alert(" not in js
 assert 'previousOtherCount' in js and "'save-as-favorite'" in js and "'new-fav-group'" in js
-assert 'src="js/app.js?v=41"' in html
+assert 'src="js/app.js?v=42"' in html
 assert 'id="timer-actions-dialog"' not in html
 assert 'data-action="timer-menu"' not in html
 assert "'timer-menu'" not in js
 files=[ui/'index.html',ui/'sw.js',ui/'pwa-update.js',*(ui/'js').glob('*.js')]
 versions={v for f in files for v in re.findall(r'\?v=([A-Za-z0-9._-]+)',f.read_text())}
-assert versions=={'41'},versions
-assert "const VERSION = 'v41'" in (ui/'sw.js').read_text()
+assert versions=={'42'},versions
+assert "const VERSION = 'v42'" in (ui/'sw.js').read_text()
 assert '?v=40' not in ''.join(f.read_text() for f in files)
 print('Web UI structure and updated assets OK')

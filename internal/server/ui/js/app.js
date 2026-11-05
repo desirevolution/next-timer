@@ -1,9 +1,9 @@
-import {RecentTimers} from './recent-timers.js?v=41';
-import {enableFavoriteSorting} from './favorite-sort.js?v=41';
-import {createStandaloneAPI} from './standalone-store.js?v=41';
-import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=41';
-import {parseQuickTimer} from './quick-timer.js?v=41';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=41';
+import {RecentTimers} from './recent-timers.js?v=42';
+import {enableFavoriteSorting} from './favorite-sort.js?v=42';
+import {createStandaloneAPI} from './standalone-store.js?v=42';
+import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=42';
+import {parseQuickTimer} from './quick-timer.js?v=42';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=42';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -83,6 +83,23 @@ function selectTimer(offset) {
   manualFocusID=timers[(index+offset+timers.length)%timers.length].id;
   draw();
 }
+function lastCompletedTimer(){
+  // Server mode follows the shared server completion record. The standalone
+  // build has no server, so its own local record is authoritative.
+  return STANDALONE?localTimers?.lastFinished:(serverState.last_finished||localTimers?.lastFinished);
+}
+async function repeatLast(){
+  const last=lastCompletedTimer();
+  if(!last)throw Error(L('Noch kein beendeter Timer vorhanden'));
+  // The server selects its latest completion atomically. Local timers use
+  // the immutable configuration captured when they ended.
+  if(!STANDALONE && serverState.last_finished){
+    const started=await api('/repeat','POST');
+    if(started?.id){await reload().catch(()=>{});manualFocusID=started.id;draw();}
+    return started;
+  }
+  return startTimer(last.duration,last.name,null,{browser_only:true,sound:last.sound,notify:last.notify,alarm:last.alarm??null});
+}
 function drawFocus(){
   const focus=focusTimer();
   const timers=navigableTimers();
@@ -97,6 +114,13 @@ function drawFocus(){
   $('hero-origin').hidden=STANDALONE||!focus?.local;
   $('hero-controls').hidden=!focus;
   $('focus-panel').classList.toggle('idle',!focus);
+  const last=!focus?lastCompletedTimer():null;
+  $('repeat-idle').hidden=!last;
+  if(last){
+    $('repeat-last-label').textContent=L('{name} · {duration} wiederholen',
+      {name:last.name,duration:durationLabel(last.duration)});
+    $('repeat-last').setAttribute('aria-label',L('Letzten Timer {name} wiederholen',{name:last.name}));
+  }
   if (focus?.id !== renderedFocusID) renderedFocusID=focus?.id||'';
   for (const action of ['hero-minus','hero-toggle','hero-plus','hero-stop','hero-favorite']) $(action).dataset.id=focus?.id||'';
   if(focus){$('hero-toggle').dataset.action=focus.status==='paused'?'resume':'pause';$('toggle-symbol').textContent=focus.status==='paused'?'▶':'Ⅱ';$('toggle-label').textContent=focus.status==='paused'?'Weiter':'Pause';}
@@ -263,6 +287,10 @@ for (const prefix of ['timer-','edit-','global-']) $(prefix+'volume').addEventLi
   $(prefix+'volume-label').value=`${$(prefix+'volume').value} %`;
 });
 showGlobalDefaults();profileForm('timer-');profileForm('edit-');
+// The idle repeat label is dynamic (name/duration); update it immediately
+// when the user switches between German and English.
+$('language-select')?.addEventListener('change',()=>requestAnimationFrame(draw));
+window.addEventListener('languagechange',()=>requestAnimationFrame(draw));
 async function startTimer(duration,name,templateId,options={}){
   const fav=templateId?(current.templates||[]).find(f=>f.id===templateId):null;
   if(templateId&&!fav) throw Error('Favorit nicht gefunden.');
@@ -582,6 +610,9 @@ document.addEventListener('keydown',event=>{
   const key=event.key.toLowerCase();
   if(key==='n') {event.preventDefault();focusQuickInput(true);}
   else if(event.key==='?' || (event.code==='Slash' && event.shiftKey)) {event.preventDefault();$('shortcuts-dialog').showModal();}
+  else if(key==='r' && lastCompletedTimer()) {
+    event.preventDefault();perform(()=>repeatLast());
+  }
   else if(key==='p' && focusTimer()) {
     event.preventDefault();
     const timer=focusTimer();
@@ -600,6 +631,7 @@ document.addEventListener('click',e=>{
   const button=e.target.closest('button[data-action]');
   if(!button)return;
   const {action,id}=button.dataset;
+  if(action==='repeat-last') {perform(()=>repeatLast()).then(ok=>{if(ok && document.activeElement===button)button.blur();});return;}
   if(action==='show-timer') {manualFocusID=id;draw();return;}
   if(action==='group-up'||action==='group-down'){moveGroup(button.dataset.group,action==='group-up'?-1:1);return;}
   if(action==='new-fav-group'){openFavoriteEditor(null,{group:button.dataset.group});return;}
@@ -673,7 +705,7 @@ reload().catch(()=>{
 });
 if(STANDALONE){
   $('standalone-export')?.addEventListener('click',()=>{
-    const data=JSON.stringify({...standaloneStore.exportBackup(localTimers.all()),recent:recentTimers.all()},null,2);
+    const data=JSON.stringify({...standaloneStore.exportBackup(localTimers.all()),recent:recentTimers.all(),last_finished:localTimers.lastFinished},null,2);
     const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='nexttimer-backup.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -686,6 +718,7 @@ if(STANDALONE){
       confirmAction({title:'Sicherung wiederherstellen?',description:'Alle vorhandenen lokalen Favoriten und Timer werden durch diese Sicherung ersetzt.',label:'Wiederherstellen',danger:true,run:async()=>{
         standaloneStore.replaceFavorites(data.favorites);
         recentTimers.replace(raw.recent || []);
+        localTimers.restoreLastFinished(raw.last_finished??null);
         localStorage.setItem('nexttimer.local-timers.v1',JSON.stringify(data.timers));
         localTimers.timers=localTimers.read();
         await reload();drawRecent();message('Sicherung importiert.');

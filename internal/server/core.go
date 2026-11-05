@@ -130,6 +130,7 @@ type TimerView = protocol.TimerView
 type Template = protocol.Template
 type Snapshot = protocol.Snapshot
 type RecentTimer = protocol.RecentTimer
+type CompletedTimer = protocol.CompletedTimer
 type Event = protocol.Event
 
 type Service struct {
@@ -138,6 +139,7 @@ type Service struct {
 	templates    []Template
 	templatePath string
 	recent       []RecentTimer
+	lastFinished *CompletedTimer
 	finishedTTL  time.Duration
 	subscribers  map[chan Event]struct{}
 }
@@ -174,6 +176,25 @@ func NewService(path string, ttl time.Duration) (*Service, error) {
 		if len(s.recent) > 5 {
 			s.recent = s.recent[:5]
 		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return nil, readErr
+	}
+	// Persist completion separately from start history and templates.
+	if b, readErr := os.ReadFile(path + ".last-finished.json"); readErr == nil {
+		var last CompletedTimer
+		if err := json.Unmarshal(b, &last); err != nil {
+			return nil, fmt.Errorf("Letzter Timer nicht lesbar: %w", err)
+		}
+		if _, err := parseDuration(last.Duration); err != nil {
+			return nil, fmt.Errorf("Letzter Timer ungültig: %w", err)
+		}
+		if err := validateBrowserAlarm(last.Alarm); err != nil {
+			return nil, err
+		}
+		if last.EndedAtMS <= 0 {
+			return nil, errors.New("Ungültiger Abschlusszeitpunkt")
+		}
+		s.lastFinished = &last
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return nil, readErr
 	}
@@ -263,7 +284,7 @@ func (s *Service) focusLocked() *Timer {
 }
 
 func (s *Service) snapshotLocked(now time.Time) Snapshot {
-	out := Snapshot{ServerNowMS: now.UnixMilli(), Timers: make([]TimerView, 0, len(s.timers)), Templates: append([]Template{}, s.templates...), Groups: groupNames(s.templates), Recent: append([]RecentTimer{}, s.recent...)}
+	out := Snapshot{ServerNowMS: now.UnixMilli(), Timers: make([]TimerView, 0, len(s.timers)), Templates: append([]Template{}, s.templates...), Groups: groupNames(s.templates), Recent: append([]RecentTimer{}, s.recent...), LastFinished: s.lastFinished}
 	if f := s.focusLocked(); f != nil {
 		out.FocusID = f.ID
 	}
@@ -374,6 +395,65 @@ func (s *Service) saveRecentLocked() error {
 	}
 	return os.Rename(tmp.Name(), path)
 }
+
+// recordCompletionLocked compares the actual end instant, not the order in
+// which a delayed tick or request happened to notice the end.
+func (s *Service) recordCompletionLocked(t *Timer, ended time.Time) {
+	if s.lastFinished != nil && ended.UnixMilli() < s.lastFinished.EndedAtMS {
+		return
+	}
+	item := &CompletedTimer{Name: t.Name, Duration: t.Duration.String(), Sound: t.Sound, Notify: t.Notify, Alarm: t.Alarm, EndedAtMS: ended.UnixMilli()}
+	s.lastFinished = item
+	path := s.templatePath + ".last-finished.json"
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		log.Printf("Letzter Timer: %v", err)
+		return
+	}
+	b, err := json.MarshalIndent(item, "", "  ")
+	if err != nil {
+		log.Printf("Letzter Timer: %v", err)
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".last-finished-*")
+	if err != nil {
+		log.Printf("Letzter Timer: %v", err)
+		return
+	}
+	defer os.Remove(tmp.Name())
+	if err = tmp.Chmod(0600); err == nil {
+		_, err = tmp.Write(b)
+	}
+	if err == nil {
+		err = tmp.Sync()
+	}
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		log.Printf("Letzter Timer nicht speicherbar: %v", err)
+	}
+}
+
+// RepeatLast atomically reads the most recent server-wide completion and
+// starts a new timer with the same configuration. A repeat does not change
+// the last-completed record until the new timer actually ends.
+func (s *Service) RepeatLast() (*TimerView, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lastFinished == nil {
+		return nil, errors.New("Noch kein beendeter Timer vorhanden")
+	}
+	item := *s.lastFinished
+	duration, err := parseDuration(item.Duration)
+	if err != nil {
+		return nil, err
+	}
+	return s.startConfiguredLocked(item.Name, duration, TimerOptions{Sound: item.Sound, Notify: item.Notify, Alarm: item.Alarm}, time.Now()), nil
+}
+
 func (s *Service) ClearRecent() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -389,12 +469,14 @@ func (s *Service) Start(name string, duration time.Duration) *TimerView {
 	return s.StartConfigured(name, duration, TimerOptions{Sound: true, Notify: true})
 }
 func (s *Service) StartConfigured(name string, duration time.Duration, options TimerOptions) *TimerView {
-	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startConfiguredLocked(name, duration, options, time.Now())
+}
+func (s *Service) startConfiguredLocked(name string, duration time.Duration, options TimerOptions, now time.Time) *TimerView {
 	if strings.TrimSpace(name) == "" {
 		name = "Timer"
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	t := &Timer{ID: id("t"), Name: strings.TrimSpace(name), Duration: duration, Deadline: now.Add(duration), Remaining: duration, Status: "running", CreatedAt: now, Sound: options.Sound, Notify: options.Notify, Alarm: options.Alarm}
 	s.timers[t.ID] = t
 	s.addRecentLocked(RecentTimer{Name: t.Name, Duration: duration.String(), Sound: options.Sound, Notify: options.Notify, Alarm: options.Alarm, StartedAtMS: now.UnixMilli()})
@@ -488,6 +570,9 @@ func (s *Service) Control(timerID, action string, delta time.Duration) (*TimerVi
 			t.Deadline = now.Add(t.Remaining)
 		}
 	case "stop":
+		if t.Status == "running" || t.Status == "paused" {
+			s.recordCompletionLocked(t, now)
+		}
 		delete(s.timers, timerID)
 		s.publishLocked("stopped", t, now)
 		v := t.view(now)
@@ -501,9 +586,18 @@ func (s *Service) Control(timerID, action string, delta time.Duration) (*TimerVi
 	return &v, nil
 }
 func (s *Service) finishLocked(t *Timer, now time.Time) {
+	if t.Status == "finished" {
+		return
+	}
+	// Use the true deadline even when Tick observes expiration late.
+	ended := now
+	if t.Status == "running" && t.Deadline.Before(now) {
+		ended = t.Deadline
+	}
 	t.Status = "finished"
 	t.Remaining = 0
 	t.FinishedAt = now
+	s.recordCompletionLocked(t, ended)
 	s.publishLocked("finished", t, now)
 }
 func (s *Service) Tick() {
