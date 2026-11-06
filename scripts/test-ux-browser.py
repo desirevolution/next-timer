@@ -12,6 +12,7 @@ MODULES={
     'standalone':('standalone-store.js',['createStandaloneAPI']),
     'quick':('quick-timer.js',['parseQuickTimer']),
     'recent':('recent-timers.js',['RecentTimers']),
+    'progress':('progress-audio.js',['ProgressScheduler','ProgressSound','readProgressSettings','saveProgressSettings']),
 }
 def bundle():
     chunks=[]
@@ -23,7 +24,7 @@ def bundle():
         else: pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
         chunks.append(f'const module_{module}=(()=>{{{pre}\n{src}\nreturn {{{",".join(exports)}}};}})();')
     app=(UI/'js/app.js').read_text()
-    for filename,variable in {'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent'}.items():
+    for filename,variable in {'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent','progress-audio':'progress'}.items():
         pattern=rf'^import\s+\{{([^}}]+)\}}\s+from\s+[\'\"]\./{filename}\.js\?v=[^\'\"]+[\'\"];?\s*$'
         app,count=re.subn(pattern,lambda m:f'const {{{m.group(1)}}}=module_{variable};',app,count=1,flags=re.M)
         assert count==1,filename
@@ -77,6 +78,13 @@ with sync_playwright() as pw:
         page.wait_for_function("document.querySelector('.favorite-group-heading h3')?.textContent==='Kochen'")
         page.locator('[data-action="delete-fav"]').first.click()
         assert page.locator('#confirm-dialog').evaluate('el=>el.open')
+        # Confirmation questions should stay compact and centered even on phones,
+        # unlike form dialogs which need fullscreen space for the soft keyboard.
+        bounds=page.locator('#confirm-dialog').bounding_box()
+        viewport=page.viewport_size
+        assert bounds and bounds['height'] < 270, bounds
+        assert abs(bounds['y'] + bounds['height']/2 - viewport['height']/2) < 30, bounds
+        assert bounds['x'] > 0 and bounds['x'] + bounds['width'] < viewport['width'], bounds
         page.locator('#confirm-cancel').click()
         assert page.locator('.fav-card').count()==2
         page.locator('#sort-toggle').click()

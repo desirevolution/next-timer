@@ -1,9 +1,10 @@
-import {RecentTimers} from './recent-timers.js?v=42';
-import {enableFavoriteSorting} from './favorite-sort.js?v=42';
-import {createStandaloneAPI} from './standalone-store.js?v=42';
-import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=42';
-import {parseQuickTimer} from './quick-timer.js?v=42';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=42';
+import {RecentTimers} from './recent-timers.js?v=44';
+import {ProgressScheduler, ProgressSound, readProgressSettings, saveProgressSettings} from './progress-audio.js?v=44';
+import {enableFavoriteSorting} from './favorite-sort.js?v=44';
+import {createStandaloneAPI} from './standalone-store.js?v=44';
+import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=44';
+import {parseQuickTimer} from './quick-timer.js?v=44';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=44';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -24,6 +25,53 @@ const cachedFavorites = (() => {try {return JSON.parse(localStorage.getItem('nex
 let serverState = {timers:[],templates:cachedFavorites,server_now_ms:Date.now()};
 let current = {...serverState}, skew = 0, sorting = false, editID = null, renameGroup = null, localTimers;
 let previousOtherCount = 0;
+let serverAudioReady = STANDALONE;
+const progressSound = new ProgressSound(status=>{
+  const warning=$('progress-audio-warning');
+  if(warning) warning.hidden=status!=='blocked'&&status!=='unavailable';
+});
+let progressSettings=readProgressSettings();
+const progressScheduler=new ProgressScheduler({
+  milestone:(index,volume)=>progressSound.milestone(index,volume),
+  tick:volume=>progressSound.tick(volume),
+  silence:()=>progressSound.stop()
+},progressSettings);
+function syncProgressControls() {
+  $('progress-milestones').checked=progressSettings.milestones;
+  $('progress-ticking').checked=progressSettings.ticking;
+  $('progress-min-duration').value=String(progressSettings.minDuration);
+  $('progress-sound-threshold').hidden=!progressSettings.milestones;
+  $('progress-volume').value=String(progressSettings.volume);
+  $('progress-volume-label').value=`${progressSettings.volume} %`;
+}
+function updateProgressSettings() {
+  try {
+    progressSettings=saveProgressSettings({
+      milestones:$('progress-milestones').checked,
+      ticking:$('progress-ticking').checked,
+      minDuration:Number($('progress-min-duration').value),
+      volume:Number($('progress-volume').value)
+    });
+    progressScheduler.setSettings(progressSettings);
+    progressSound.stop(); // Switching off takes effect immediately.
+    if(progressSettings.milestones||progressSettings.ticking)void progressSound.unlock();
+    syncProgressControls();
+  } catch(e) {message(e.message,true);}
+}
+for(const id of ['progress-milestones','progress-ticking','progress-min-duration'])
+  $(id).addEventListener('change',updateProgressSettings);
+$('progress-volume').addEventListener('input',updateProgressSettings);
+$('preview-progress-milestones').addEventListener('click',()=>progressSound.preview('milestones',progressSettings.volume/100));
+$('preview-progress-ticking').addEventListener('click',()=>progressSound.preview('ticks',progressSettings.volume/100));
+window.addEventListener('storage',e=>{
+  if(e.key==='nexttimer.progress-audio.v1'){
+    progressSettings=readProgressSettings();
+    progressScheduler.setSettings(progressSettings);
+    progressSound.stop();
+    syncProgressControls();
+  }
+});
+syncProgressControls();
 const recentTimers = new RecentTimers();
 let recentOpen = false, recentIndex = -1, recentDraft = '', recentChoice = null;
 // null means automatic selection (soonest running timer); otherwise pin the
@@ -57,7 +105,7 @@ function apply(state) {
   try {localStorage.setItem('nexttimer.templates-cache.v1',JSON.stringify(state.templates||[]));} catch {}
   combine();
 }
-async function reload(){apply(await api('/state'));}
+async function reload(){const state=await api('/state');serverAudioReady=true;apply(state);}
 function button(action,label,id,title,extra='') {
   return `<button type="button" data-action="${action}" data-id="${esc(id)}" class="${extra}" aria-label="${esc(title)}" title="${esc(title)}">${label}</button>`;
 }
@@ -127,6 +175,9 @@ function drawFocus(){
   refreshTime();
 }
 function refreshTime(){
+  // Auditory leader is the soonest-expiring RUNNING timer, not manual focus.
+  // A lost server connection cannot drive sounds from stale server deadlines.
+  progressScheduler.update(current.timers||[],skew,serverAudioReady);
   const focus=focusTimer();
   const urgent=Boolean(focus && focus.status==='running' && remaining(focus)<=10000);
   $('focus-panel').classList.toggle('urgent',urgent);
@@ -670,12 +721,19 @@ document.addEventListener('click',e=>{
 });
 const events=STANDALONE?null:new EventSource('/api/events');
 events?.addEventListener('state',e=>{
-  try{const event=JSON.parse(e.data);apply(event.state);if(event.type==='finished'&&event.timer)alertFinished(event.timer);$('connect').textContent='Verbunden';$('live').classList.remove('off');}
+  try{const event=JSON.parse(e.data);serverAudioReady=true;apply(event.state);if(event.type==='finished'&&event.timer)alertFinished(event.timer);$('connect').textContent='Verbunden';$('live').classList.remove('off');}
   catch(error){console.error(error);}
 });
-events?.addEventListener('error',()=>{$('connect').textContent='Verbinde erneut …';$('live').classList.add('off');});
+events?.addEventListener('error',()=>{serverAudioReady=false;$('connect').textContent='Verbinde erneut …';$('live').classList.add('off');});
 initBrowserAlarms();
 document.addEventListener('pointerdown', unlockAudio, {passive:true});
+// Unlock only from real user interactions; never play queued/missed cues later.
+document.addEventListener('pointerdown',()=>{
+  if(progressSettings.milestones||progressSettings.ticking)void progressSound.unlock();
+},{passive:true});
+document.addEventListener('keydown',()=>{
+  if(progressSettings.milestones||progressSettings.ticking)void progressSound.unlock();
+},{passive:true});
 function updateNotificationButton(){
   const p=permission();
   const action=$('notifications-enable'),status=$('notifications-status');

@@ -20,4 +20,6 @@ with TemporaryDirectory() as temp:
     assert "const VERSION = 'static-v9.8.7'" in sw
     assert 'recent-timers.js?v=v9.8.7' in sw
     assert (output/'js/recent-timers.js').exists()
+    assert (output/'js/progress-audio.js').exists()
+    assert 'progress-audio.js?v=v9.8.7' in sw
 print('Release-only Pages, stable filter, build labels & recent cache OK')

@@ -7,10 +7,10 @@
   <title>NextTimer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=42">
-  <script defer src="js/i18n.js?v=42"></script>
-  <script type="module" src="js/app.js?v=42"></script>
-  <script defer src="pwa-update.js?v=42"></script>
+  <link rel="stylesheet" href="styles.css?v=44">
+  <script defer src="js/i18n.js?v=44"></script>
+  <script type="module" src="js/app.js?v=44"></script>
+  <script defer src="pwa-update.js?v=44"></script>
 </head>
 <body>
 <main class="shell">
@@ -116,6 +116,20 @@
       <div class="permission-row"><button type="button" id="notifications-enable" class="secondary-button">Benachrichtigungen aktivieren</button><span id="notifications-status" class="notification-status" role="status" hidden></span></div>
       <p class="subtle">Töne benötigen eine geöffnete App. Systembenachrichtigungen benötigen eine Browserfreigabe.</p>
     </details>
+    <section class="settings-section progress-sound-settings" id="progress-sound-settings" aria-labelledby="progress-sound-title">
+      <h3 id="progress-sound-title">Töne</h3>
+      <p class="subtle">Dezente akustische Hinweise für laufende Timer – nur in diesem Browser.</p>
+      <label class="check-option"><input type="checkbox" id="progress-milestones"><span><strong>Fortschrittssignale</strong><small>Bei 25 %, 50 % und 75 %</small></span></label>
+      <div class="progress-sound-threshold" id="progress-sound-threshold" hidden>
+        <label for="progress-min-duration">Mindestdauer für Fortschrittssignale</label>
+        <select id="progress-min-duration"><option value="60">1 Minute (Standard)</option><option value="120">2 Minuten</option><option value="300">5 Minuten</option><option value="600">10 Minuten</option></select>
+        <p class="subtle">Die ursprüngliche Timerdauer muss mindestens so lang sein.</p>
+      </div>
+      <label class="check-option"><input type="checkbox" id="progress-ticking"><span><strong>Countdown-Ticken</strong><small>Leises Ticken in den letzten 10 Sekunden</small></span></label>
+      <div class="volume-field progress-sound-volume"><label for="progress-volume">Lautstärke <output id="progress-volume-label">35 %</output></label><input type="range" id="progress-volume" min="0" max="100" step="5" value="35"></div>
+      <div class="progress-sound-preview"><button type="button" class="secondary-button" id="preview-progress-milestones">▶ Signale testen</button><button type="button" class="secondary-button" id="preview-progress-ticking">▶ Ticken testen</button></div>
+      <p class="subtle progress-audio-warning" id="progress-audio-warning" role="status" hidden>Audio ist im Browser blockiert. Bitte einen Test-Button drücken, um den Ton freizugeben.</p>
+    </section>
     <section class="settings-section" id="backup-settings" hidden></section>
     <section class="settings-section language-settings"><h3>Sprache</h3>
       <label for="language-select">Sprache der Oberfläche</label>

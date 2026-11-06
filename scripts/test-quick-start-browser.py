@@ -17,6 +17,7 @@ MODULES={
     'standalone':('standalone-store.js',['createStandaloneAPI']),
     'quick':('quick-timer.js',['parseQuickTimer']),
     'recent':('recent-timers.js',['RecentTimers']),
+    'progress':('progress-audio.js',['ProgressScheduler','ProgressSound','readProgressSettings','saveProgressSettings']),
 }
 
 def browser_bundle():
@@ -29,7 +30,7 @@ def browser_bundle():
         else: pre='const {parseTimerDuration}=module_local;' if module in ['standalone','quick'] else ''
         chunks.append(f'const module_{module}=(()=>{{{pre}\n{source}\nreturn {{{",".join(exports)}}};}})();')
     app=(UI/'js/app.js').read_text()
-    mapping={'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent'}
+    mapping={'favorite-sort':'sort','standalone-store':'standalone','local-timers':'local','quick-timer':'quick','alerts':'alerts','recent-timers':'recent','progress-audio':'progress'}
     for filename,variable in mapping.items():
         pattern=rf'^import\s+\{{([^}}]+)\}}\s+from\s+[\'\"]\./{filename}\.js\?v=[^\'\"]+[\'\"];?\s*$'
         app,count=re.subn(pattern,lambda m:f'const {{{m.group(1)}}}=module_{variable};',app,count=1,flags=re.M)

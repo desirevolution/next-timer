@@ -321,3 +321,46 @@ kbd{display:inline-block;border:1px solid #5d748a;border-radius:5px;padding:2px 
 .recent-entry-duration{color:var(--muted);white-space:nowrap;font-size:.84rem;font-variant-numeric:tabular-nums}
 .recent-entry-play{font-size:.75rem;color:var(--accent)}
 @media(max-width:480px){.recent-popover{max-height:min(300px,46dvh)}.recent-entry{min-height:48px}}
+
+/* Compact confirmations on phones. Fullscreen is useful for forms with the
+   software keyboard, but a two-action question should remain a small modal. */
+@media (max-width:480px) {
+  .edit-dialog.confirm-dialog[open] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    transform: none;
+    width: min(420px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    height: fit-content;
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+    padding: 20px 18px 18px;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .confirm-dialog .dialog-scroll {
+    flex: 0 1 auto;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+  }
+  .confirm-dialog .dialog-footer {
+    flex: 0 0 auto;
+    margin-top: 4px;
+    padding-top: 14px;
+  }
+}
+
+/* v44: optional per-browser progress audio; the end alarm keeps its own settings. */
+.progress-sound-settings{display:grid;gap:12px}
+.progress-sound-settings>h3{margin:0}
+.progress-sound-settings>.subtle{margin:0!important}
+.progress-sound-settings .check-option{margin:0;align-items:flex-start}
+.progress-sound-threshold{display:grid;gap:7px;padding:0 0 2px 28px}
+.progress-sound-threshold[hidden],.progress-audio-warning[hidden]{display:none}
+.progress-sound-threshold select{width:100%;max-width:280px;min-height:44px}
+.progress-sound-threshold p{font-size:.8rem}
+.progress-sound-volume{margin-top:2px}
+.progress-sound-preview{display:flex;flex-wrap:wrap;gap:8px}
+.progress-sound-preview button{min-height:44px;flex:1 1 170px}
+.progress-audio-warning{color:var(--red, #ffa0aa)!important;font-size:.82rem}
