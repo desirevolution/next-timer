@@ -43,6 +43,7 @@ jobs:
           node --experimental-default-type=module scripts/test-standalone-store.mjs
           node scripts/test-recent-timers.mjs
           node --experimental-default-type=module scripts/test-browser-alarms.mjs
+          node scripts/test-progress-audio.mjs
           python3 scripts/build-static.py --output dist/static --version ci
           test -f dist/static/pwa-repair.html
 

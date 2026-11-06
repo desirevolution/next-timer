@@ -41,6 +41,7 @@ jobs:
           node --experimental-default-type=module scripts/test-standalone-store.mjs
           node scripts/test-recent-timers.mjs
           node --experimental-default-type=module scripts/test-browser-alarms.mjs
+          node scripts/test-progress-audio.mjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static files
