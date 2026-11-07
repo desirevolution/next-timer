@@ -570,13 +570,7 @@ func (s *Service) Control(timerID, action string, delta time.Duration) (*TimerVi
 			t.Deadline = now.Add(t.Remaining)
 		}
 	case "stop":
-		if t.Status == "running" || t.Status == "paused" {
-			s.recordCompletionLocked(t, now)
-		}
-		delete(s.timers, timerID)
-		s.publishLocked("stopped", t, now)
-		v := t.view(now)
-		return &v, nil
+		return s.stopLocked(t, now), nil
 	default:
 		return nil, errors.New("Ungültige Aktion")
 	}

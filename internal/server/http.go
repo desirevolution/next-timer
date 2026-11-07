@@ -156,6 +156,32 @@ document.querySelector('#repair').addEventListener('click',async()=>{
 			}
 		}
 	})
+	// Quick REST entry matches the browser input syntax, including #1–#0.
+	mux.HandleFunc("POST /api/timers/quick", func(w http.ResponseWriter, r *http.Request) {
+		input, status, code, err := readQuickInput(w, r)
+		if err != nil {
+			quickHTTPError(w, status, code, err.Error())
+			return
+		}
+		timer, err := api.Service.StartQuick(input)
+		if err != nil {
+			status = http.StatusUnprocessableEntity
+			if quickErrorCode(err) == "FAVORITE_NOT_FOUND" {
+				status = http.StatusNotFound
+			}
+			quickHTTPError(w, status, quickErrorCode(err), err.Error())
+			return
+		}
+		respond(w, http.StatusCreated, timer)
+	})
+	mux.HandleFunc("POST /api/timers/next/stop", func(w http.ResponseWriter, r *http.Request) {
+		timer := api.Service.StopNext()
+		if timer == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		respond(w, http.StatusOK, timer)
+	})
 	mux.HandleFunc("POST /api/timers", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Name        string                 `json:"name"`

@@ -1,119 +1,144 @@
 # NextTimer
 
-A small countdown timer service with a web interface and a terminal client.
+Countdown timers with a web app, terminal client and optional AWTRIX NG display. Run several timers, group favorites and control server timers through the REST API. A standalone PWA runs entirely in the browser.
 
-Run multiple timers, save frequently used durations as favorites, and control timers from a browser or the command line. The main view automatically shows the timer due to finish next, until you select a different running or paused timer.
-
-The project provides two programs:
-
-- `nexttimer-server` — HTTP API, web app, optional AWTRIX NG display and alarm webhook.
-- `nexttimer` — CLI and interactive terminal UI.
-
-## Docker
-
-Copy the example configuration and start the server:
+## Quick start
 
 ```sh
 cp .env.example .env
-docker compose pull
 docker compose up -d
 ```
 
-Open <http://127.0.0.1:8080>.
-
-The default image is `ghcr.io/desirevolution/next-timer:0.21.0`. Change `NEXTTIMER_VERSION` in `.env` to use a different release. The image must be published to GHCR before it can be pulled.
-
-To build from source instead:
+Open <http://127.0.0.1:8080>. The Compose file uses `ghcr.io/desirevolution/next-timer:latest` and persists favorites and timer history in a Docker volume. To build locally instead:
 
 ```sh
 docker compose -f compose.dev.yaml up -d --build
 ```
 
-Both Compose files use the same settings and persistent Docker volume. Use one or the other, not both at once.
+Don't start both Compose variants at once; they share the same port and volume. Set `NEXTTIMER_BIND_ADDRESS` and `NEXTTIMER_PORT` in `.env` if needed.
 
-## Web app
+## Web app and standalone
 
-The web app lets you start and control timers, save favorites, and arrange favorites into groups. The interface is available in English and German: Settings → Language (below Data & backup) offers Automatic (browser language), Deutsch and English. The selection is saved locally and applied without reloading timers. Groups can be reordered in edit mode. Favorite names must be unique within a group, but can be reused in different groups. It can also be installed as a PWA.
+Enter `5m Kaffee`, `1h30m Workshop` or `#1` (an assigned favorite). Server favorites are shared; **Browser only** timers stay on the current device and don't trigger server integrations. NextTimer Local is a standalone, installable PWA with browser-local timers, favorites and JSON backup. Build it with:
 
-When no running or paused timer exists, the empty main timer view cannot be focused or selected. A paused timer remains selectable so it can be resumed. Use the left/right arrows in the main timer view to switch between timers (the position indicator shows which one is selected). A manually selected timer stays visible even while paused; when it stops or finishes, the display returns to the soonest-running timer, or to the first paused timer if all are paused. Clicking **Anzeigen** in the additional-timers list selects that timer too. Stopping any timer asks for confirmation.
+```sh
+python3 scripts/build-static.py --output dist/static --version dev
+```
 
-### Keyboard controls
+Host the generated `dist/static/` directory on any static web server. GitHub Pages is deployed only when a **regular GitHub Release** is published (not on pushes or pre-releases). Release builds show their tag beside the app name; development builds show their build label.
 
-The timer entry is focused automatically on desktop. After a timer starts, its entry loses focus so timer shortcuts work immediately; press `N` to type another timer. Ordinary Tab navigation remains available. The **⌨** button opens a shortcut reference.
+The main display follows the next expiring timer unless you select another. Paused timers stay selectable; stop and delete actions ask for confirmation in the UI. Favorites can be reordered by dragging their handles. Assign optional unique shortcut numbers `#1`–`#0` in the favorite editor.
 
-| Keys | Action |
+| Key | Action |
 | --- | --- |
-| `Enter` in the entry | Start a timer (e.g. `5m Tea`) or an assigned favorite (e.g. `#1`) |
-| `N` | Focus the timer entry from anywhere outside a form/dialog |
-| `Esc` | Clear the focused timer entry (if filled); otherwise release the current focus, or focus the entry from the unfocused page. In a dialog, close/cancel it |
-| `←` / `→` outside form fields and dialogs | Switch to the previous/next displayed timer (wrap around) |
-| `P` outside form fields | Pause/resume only the displayed timer |
-| `S` outside form fields | Ask to stop only the displayed timer |
-| `?` outside form fields | Open shortcut help |
+| `Enter` in input | Start a new timer or numbered favorite |
+| `N` | Focus timer input |
+| `Esc` | Clear input, then leave it; cancel a dialog |
+| `←` / `→` | Switch displayed timer (outside forms/dialogs) |
+| `P` / `S` | Pause/resume or confirm stop of displayed timer |
+| `R` | Repeat the last expired or stopped timer |
+| `?` | Shortcut help |
 
-In favorite edit mode, drag a favorite by its handle to reorder within its group; the layout stays a two-column grid on desktop and becomes a single-column list on narrow mobile screens. The order saves automatically; no separate up/down buttons are required. Each favorite can have one optional, unique `#1`–`#0` assignment, set in its edit form. Assignments remain fixed through favorite reordering and are stored with favorite data (including browser-only backups). Only confirmation dialogs (stop timer, delete favorite, restore backup) use `←` and `→` to focus **Cancel** and **Confirm** respectively; `Enter` activates the focused button, `Esc` cancels. Arrows in edit/settings forms keep their usual cursor and control behavior. Normal text-entry keys are never captured for shortcuts while typing. On mobile the input is **not** auto-focused; dialog action buttons are kept above the software keyboard.
+The clock icon in the input opens the last **five distinct started configurations**; selecting one repeats it immediately. `↑`/`↓` navigate that history in an empty focused input. Separately, `R` repeats the **most recently expired or stopped** timer, server-wide for server timers. The repeat button appears in the empty main timer area. Completion history survives server restarts; active server timers do not.
 
-Expired browser alarms appear in one compact scrollable list, with individual acknowledgement and **Acknowledge all** for persistent alarms. Timers marked **Browser only** run locally and do not use the server, AWTRIX, or the webhook. Browser notifications are available when permitted, but a local timer cannot guarantee an alarm while the app is closed.
+**Sound:** Settings → Sounds has separate optional progress cues (25/50/75%) and last-ten-seconds ticking, one volume slider, and previews. Progress cues require a configurable minimum duration of 1, 2, 5 or 10 minutes. Sound preferences are per browser, off by default, and excluded from backups. The final alarm is separate. Background audio depends on the browser; the terminal client is silent for progress cues. Language can be switched between Automatic, Deutsch and English in Settings.
+
+## REST API
+
+The server API is usable from Node-RED or `curl` over a trusted internal network. There is **no built-in authentication**; protect externally reachable instances using a reverse proxy and access controls.
+
+### Quick entry
+
+`POST /api/timers/quick` accepts the same timer syntax as the web input, including server-side numbered favorites. Both content types work:
+
+```sh
+# Text body
+curl -i -X POST http://localhost:8080/api/timers/quick \
+  -H 'Content-Type: text/plain' --data-binary '5m Kaffee'
+
+# JSON body (only a string field named "input")
+curl -i -X POST http://localhost:8080/api/timers/quick \
+  -H 'Content-Type: application/json' -d '{"input":"#1"}'
+```
+
+Success returns `201 Created` with the existing timer object (including `id`). Each request starts a new timer; **there is no automatic retry or duplicate protection**. `#1`–`#0` resolve only server-side favorites; browser-only favorites and Standalone data aren't accessible to REST. Normal timers use the existing server defaults, numbered favorites use their stored options.
+
+### Stop the next running timer
+
+```sh
+curl -i -X POST http://localhost:8080/api/timers/next/stop
+```
+
+Stops the **soonest-expiring running server timer**, ignoring paused timers and any timer that has already expired. Expirations are applied first; target selection and stop are atomic. This does **not** target a timer manually selected in a browser. Returns `200 OK` with the stopped timer object, or `204 No Content` when nothing is running. As with the existing ID-based stop endpoint, the returned object's `status` reflects its last state *before* removal. To stop a particular timer instead, use its ID.
+
+### Other useful endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/timers` | Start with JSON `name`, `duration`, or `template_id` and options |
+| `POST` | `/api/timers/{id}/pause` | Pause a specific timer |
+| `POST` | `/api/timers/{id}/resume` | Resume a specific timer |
+| `POST` | `/api/timers/{id}/stop` | Stop a specific timer |
+| `POST` | `/api/timers/{id}/adjust` | Adjust with JSON `{"delta":"-1m"}` |
+| `POST` | `/api/repeat` | Repeat last finished server timer |
+| `GET` | `/api/state` | Snapshot (including `focus_id`, timers, favorites, history) |
+| `GET` | `/api/events` | Server-sent state events (SSE) |
+
+Favorites and group management also have `/api/templates` and `/api/groups` routes. For quick-entry errors, the API responds with JSON `{"code":"...","error":"..."}`: `422` for invalid input, `404 FAVORITE_NOT_FOUND` for an unassigned/server-inaccessible `#` number, `415` for unsupported content types, and `413` for oversized bodies. Other existing API endpoints retain their response formats.
+
+### Node-RED example
+
+Use an **Inject → Function → HTTP Request → Debug** flow. In the Function node:
+
+```javascript
+msg.method = 'POST';
+msg.url = 'http://nexttimer:8080/api/timers/quick';
+msg.headers = {'Content-Type': 'text/plain'};
+msg.payload = '5m Kaffee';
+return msg;
+```
+
+Set the HTTP Request node to take its method and URL from `msg.method` and `msg.url`, and parse the JSON response. To stop the next timer, send `POST` to `http://nexttimer:8080/api/timers/next/stop` with no body. Use the returned timer `id` and `/api/timers/{id}/stop` when targeting a specific timer. The hostname `nexttimer` works when Node-RED shares the Docker network; otherwise use an internally reachable address. Sequence requests in Node-RED if their order matters.
 
 ## Terminal client
 
-Download the `nexttimer` binary for your architecture from [GitHub Releases](https://github.com/desirevolution/next-timer/releases), or build it from source.
-
-Set the server address once:
+Download `nexttimer` from [GitHub Releases](https://github.com/desirevolution/next-timer/releases) or build it from source. Configure the server once with `nexttimer config set-url http://127.0.0.1:8080` (or use `TIMER_URL` / `--url`).
 
 ```sh
-nexttimer config set-url http://127.0.0.1:8080
-```
-
-Typical commands:
-
-```sh
-nexttimer                         # Open the TUI
-nexttimer 10m "Coffee"            # Start a timer in full-screen mode
+nexttimer                         # Interactive TUI
+nexttimer 10m "Coffee"            # Start with full-screen timer
 nexttimer start "Pomodoro"        # Start a saved favorite
 nexttimer ls                      # List timers
-nexttimer watch                   # Watch the current main timer
-nexttimer --local 5m "Break"      # Run a timer only in this client
-nexttimer --detach 10m "Coffee"   # Start on the server and exit
-nexttimer --keep-running 10m      # Leave the server timer running when quitting
+nexttimer watch                   # Watch the next server timer
+nexttimer --detach 10m "Coffee"   # Start on server and exit
+nexttimer --keep-running 10m      # Keep running after leaving the TUI
+nexttimer --local 5m "Break"      # Client-only timer
 ```
 
-A timer started directly from the CLI stops when you exit its full-screen view, unless you pass `--keep-running`. With `--detach`, no TUI is opened and the server timer continues. Local CLI timers require the client to stay open.
+Direct CLI full-screen timers stop on exit unless `--keep-running` is set; `--detach` doesn't open the TUI. Press `r` in the TUI to repeat the last completed timer (server-wide or current local session).
 
-The client URL is stored in `~/.config/nexttimer/client.json` (or under `$XDG_CONFIG_HOME`). You can override it with `TIMER_URL` or `--url`.
+## Configuration and build
 
-## Configuration
-
-All Docker settings are listed in [`.env.example`](.env.example). The most useful ones are:
+See [`.env.example`](.env.example) for all Docker settings. Main options:
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXTTIMER_VERSION` | GHCR image tag |
-| `NEXTTIMER_BIND_ADDRESS` / `NEXTTIMER_PORT` | Host address and port |
-| `AWTRIX_URL` | Enable AWTRIX NG countdown notifications |
-| `AWTRIX_FINISH_EFFECT` | Effect shown when a timer finishes |
-| `TIMER_ALARM_WEBHOOK_URL` | HTTP POST when a server timer finishes |
+| `NEXTTIMER_BIND_ADDRESS` / `NEXTTIMER_PORT` | Published host address and port (default localhost:8080) |
+| `TIMER_DATA` | Path for favorites and persistent completion/history files (server setting) |
+| `TIMER_FINISHED_TTL` | How long expired server timers remain visible |
+| `AWTRIX_URL` | Optional AWTRIX NG integration |
+| `AWTRIX_FINISH_EFFECT` | Effect displayed when a timer expires |
+| `TIMER_ALARM_WEBHOOK_URL` | Optional POST webhook for `timer.finished` |
 
-AWTRIX and the webhook are disabled when their URLs are empty. AWTRIX effect speed, duration, and timing offset can also be set in `.env`.
-
-Favorites are stored in a persistent Docker volume. Running server timers are not restored after a server restart.
-
-**Security:** NextTimer has no built-in authentication. The default Compose configuration binds to localhost. If you expose it over a network, put it behind a reverse proxy with appropriate access controls.
-
-## Build from source
-
-Requires Go 1.25 or newer.
+AWTRIX and webhook are disabled when their URLs are empty. The webhook fires for regular expiry, not manual stop. To build binaries, use **Go 1.25+**:
 
 ```sh
+go test ./...
 go build -o nexttimer-server ./cmd/nexttimer-server
 go build -o nexttimer ./cmd/nexttimer
 ```
 
-For Docker-based Linux AMD64 and ARM64 builds:
-
-```sh
-./scripts/build-binaries-docker.sh
-```
+Or build Linux AMD64/ARM64 binaries with `./scripts/build-binaries-docker.sh`.
 
 ## About this project
 
@@ -122,29 +147,3 @@ This project was built with AI assistance. I'm a lazy dev.
 ## License
 
 [MIT](LICENSE).
-
-
-### Repeat recent timers and release versions
-
-The clock icon inside the quick-entry field opens the five most recently
-started distinct timer configurations. Clicking an entry immediately starts
-another timer with the same duration, name, and alarm settings. In an empty
-focused entry, `↑` and `↓` navigate history; `Enter` starts the selected timer.
-Equal durations in different notations (`3m` and `180000ms`) count as the same
-configuration. Restoring a history entry puts the duration into the
-quick-entry field in human notation (`3m`, `1m30s`), never in the form it
-happens to be stored in (`180000ms` in the standalone edition, Go's `3m0s` on
-the server); the favorite editor prefills the same notation. The history
-popover itself keeps the compact clock label.
-
-The server saves its shared history in `<TIMER_DATA>.recent.json` alongside
-its favorites file, including timers started by the CLI. Browser-only timer
-history remains in that browser's `localStorage`; the standalone edition keeps
-its entire history there (and includes it in JSON backups). The history
-menu supports clearing the list.
-
-GitHub Pages deploys **only when a regular GitHub Release is published**, not
-on pushes or pre-releases. The version shown beside NextTimer comes from the
-release tag; development builds show `dev`. To build the static version use
-`python3 scripts/build-static.py --version TAG`. Docker builds accept the
-`NEXTTIMER_VERSION` build argument.

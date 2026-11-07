@@ -1,4 +1,4 @@
-import {parseTimerDuration} from './local-timers.js?v=44';
+import {parseTimerDuration} from './local-timers.js?v=45';
 
 // Accept a sequence of duration units followed by an optional timer name.
 // The normalized duration is valid for both Go's API and the local timer engine.
@@ -29,4 +29,15 @@ export function parseQuickTimer(value) {
   const name = input.slice(index).trim();
   if ([...name].length > 80) throw Error('Name zu lang (maximal 80 Zeichen).');
   return {duration, name};
+}
+
+// Shared entry contract for Web, Standalone, and REST. The Go equivalent is
+// parseQuickInput; both run scripts/quick-input-cases.json as regression data.
+export function parseQuickInput(value) {
+  const input=String(value??'').trim();
+  if(input.startsWith('#')) {
+    if(/^#[0-9]$/.test(input)) return {kind:'favorite',shortcut:input.slice(1)};
+    throw Error('Favorit mit #1 bis #0 aufrufen.');
+  }
+  return {kind:'timer',...parseQuickTimer(input)};
 }

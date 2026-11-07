@@ -1,10 +1,10 @@
-import {RecentTimers} from './recent-timers.js?v=44';
-import {ProgressScheduler, ProgressSound, readProgressSettings, saveProgressSettings} from './progress-audio.js?v=44';
-import {enableFavoriteSorting} from './favorite-sort.js?v=44';
-import {createStandaloneAPI} from './standalone-store.js?v=44';
-import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=44';
-import {parseQuickTimer} from './quick-timer.js?v=44';
-import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=44';
+import {RecentTimers} from './recent-timers.js?v=45';
+import {ProgressScheduler, ProgressSound, readProgressSettings, saveProgressSettings} from './progress-audio.js?v=45';
+import {enableFavoriteSorting} from './favorite-sort.js?v=45';
+import {createStandaloneAPI} from './standalone-store.js?v=45';
+import {LocalTimers, durationMilliseconds, formatDurationText} from './local-timers.js?v=45';
+import {parseQuickTimer,parseQuickInput} from './quick-timer.js?v=45';
+import {alertFinished, initBrowserAlarms, getDefaults, saveDefaults, permission, requestNotifications, unlockAudio, playFinishSound} from './alerts.js?v=45';
 
 const $ = id => document.getElementById(id);
 const STANDALONE = document.documentElement.dataset.mode === 'standalone';
@@ -465,13 +465,14 @@ $('quick-form').addEventListener('submit', async event => {
     // more duration. Its captured options stay authoritative.
     if(recentChoice && quickInput.value===recentValue(recentChoice)) {
       entry={duration:recentChoice.duration,name:recentChoice.name};
-    } else if(/^#[0-9]$/.test(value)) {
-      const favorite=(current.templates||[]).find(f=>f.shortcut===value.slice(1));
-      if(!favorite) throw Error(`Kein Favorit für ${value} zugewiesen.`);
-      favoriteID=favorite.id;
-    } else if (value.startsWith('#')) {
-      throw Error('Favorit mit #1 bis #0 aufrufen.');
-    } else entry=parseQuickTimer(value);
+    } else {
+      const parsed=parseQuickInput(value);
+      if(parsed.kind==='favorite') {
+        const favorite=(current.templates||[]).find(f=>f.shortcut===parsed.shortcut);
+        if(!favorite) throw Error(`Kein Favorit für ${value} zugewiesen.`);
+        favoriteID=favorite.id;
+      } else entry={duration:parsed.duration,name:parsed.name};
+    }
   }
   catch (error) {
     quickError.textContent = error.message;

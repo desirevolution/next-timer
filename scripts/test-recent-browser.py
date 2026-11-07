@@ -15,7 +15,7 @@ with sync_playwright() as pw:
         page.evaluate("""()=>{const d=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>d.get(k)||null,setItem:(k,v)=>d.set(k,String(v)),removeItem:k=>d.delete(k)}})}""")
         page.add_script_tag(content=ns['browser_bundle']())
         page.wait_for_function("document.querySelector('#recent-toggle')")
-        assert page.locator('#app-version').inner_text()=='dev-v44'
+        assert page.locator('#app-version').inner_text()=='dev-v45'
         assert page.locator('.confirm-keyboard-hint').count()==0
         assert page.locator('#recent-toggle').is_disabled()
         field=page.locator('#quick-input')

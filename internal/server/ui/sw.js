@@ -1,16 +1,16 @@
-// PWA shell v44. All asset URLs are scoped to the service worker directory,
+// PWA shell v45. All asset URLs are scoped to the service worker directory,
 // allowing the same bundle under / or /next-timer/ on any static host.
 // Updates are installed in the background and activated only by confirmation.
-const VERSION = 'v44';
+const VERSION = 'v45';
 const BASE = new URL('./', self.location.href);
 const CACHE_PREFIX = `nexttimer-pwa-${encodeURIComponent(BASE.pathname)}-`;
 const CACHE = CACHE_PREFIX + VERSION;
 const ASSETS = [
-  './', 'index.html', 'styles.css?v=44', 'js/app.js?v=44',
-  'js/favorite-sort.js?v=44', 'js/local-timers.js?v=44',
-  'js/standalone-store.js?v=44', 'js/quick-timer.js?v=44', 'js/alerts.js?v=44',
-  'js/i18n.js?v=44', 'js/recent-timers.js?v=44', 'js/progress-audio.js?v=44',
-  'pwa-update.js?v=44', 'manifest.webmanifest',
+  './', 'index.html', 'styles.css?v=45', 'js/app.js?v=45',
+  'js/favorite-sort.js?v=45', 'js/local-timers.js?v=45',
+  'js/standalone-store.js?v=45', 'js/quick-timer.js?v=45', 'js/alerts.js?v=45',
+  'js/i18n.js?v=45', 'js/recent-timers.js?v=45', 'js/progress-audio.js?v=45',
+  'pwa-update.js?v=45', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-alarm.png'
 ];
 const absolute = path => new URL(path, BASE).href;
